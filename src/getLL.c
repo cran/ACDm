@@ -1,0 +1,905 @@
+#include "header.h" 
+#include <Rinternals.h>
+#include <Rdefines.h>
+
+//START---getLL_dist-------------------------------------//
+double getLL_dist(double *x,
+		double *mu,
+		double *e,
+		int *N,
+		int *dist,
+		double *distPara,
+		int *forceErrExpec){
+
+	double LL = 0, gammaFncValue = 0, meanPara = 0;
+	int i = 0;
+
+	if(*forceErrExpec == 1){
+		switch (*dist) {
+		case 1: //Exponential distribution
+			for (i = 0; i < *N; i++) {
+				LL += -log(*(mu+i)) - *(e+i);
+			}
+			break;
+		case 2: //Weibull distribution
+			gammaFncValue = tgamma(1+1/(*distPara));
+			for (i = 0; i < *N; i++) {
+				LL += log(*distPara/(*(x+i))) + *distPara*log(gammaFncValue*(*(x+i))/(*(mu+i))) - pow(gammaFncValue*(*(x+i))/(*(mu+i)), *distPara);
+			}
+			break;
+		case 3: //Burr distribution
+			meanPara = tgamma(1 + 1 / distPara[0]);
+			meanPara *= tgamma(1 / distPara[1] - 1 / distPara[0]);
+			meanPara /= tgamma(1 + 1 / distPara[1]) * pow(distPara[1], (1 + 1 / distPara[0]));
+			meanPara = pow(meanPara, distPara[0]);
+
+			LL = (log(meanPara * distPara[0])) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += -log(mu[i]) + (distPara[0] - 1) * log(e[i]) - (1 + 1 / distPara[1]) * log(1 + distPara[1] * meanPara * pow(e[i], distPara[0]));
+			}
+			break;
+		case 4: //Generalized Gamma distribution
+		{
+			double theta,  lnDelta, alphDelt, lnThet, lnThetGamm, thetaPow;
+
+			theta = exp(lgamma(*distPara) - lgamma(*distPara + 1/(*(distPara + 1)))); //scale parameter
+			lnDelta = log(*(distPara + 1));
+			alphDelt = (*distPara) * (*(distPara + 1)) - 1;
+			lnThet = -alphDelt * log(theta);
+			lnThetGamm = log(theta) + lgamma(*distPara);
+			thetaPow = pow(theta, -(*(distPara + 1)));
+			LL = (lnDelta + lnThet - lnThetGamm) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += alphDelt * log(*(e+i)) - pow((*(e+i)), *(distPara + 1)) * thetaPow - log(*(mu+i));
+			}
+			break;
+		}
+		case 5: //Generalized F distribution
+		{
+			double lnbetaFnPart, am, amLess1, etaPm, zetaInv;
+			lnbetaFnPart = lgamma(*distPara + (*(distPara+1))) - lgamma(*distPara) - lgamma(*(distPara+1));
+			am = *(distPara + 2) * (*distPara);
+			amLess1 = am - 1;
+			etaPm = *(distPara + 1) + (*distPara);
+			zetaInv = pow(*(distPara + 1), -1/(*(distPara + 2)))
+															* exp(lgamma(*distPara) + lgamma(*(distPara + 1)) - lgamma(*distPara + 1/(*(distPara + 2))) - lgamma(*(distPara + 1) - 1/(*(distPara + 2))));
+			LL = (lnbetaFnPart + log(*(distPara + 2)) - am*log(zetaInv) + *(distPara + 1)*log(*(distPara + 1))) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += -am * log(*(mu+i)) + amLess1 * log(*(x+i)) - etaPm * log(*(distPara + 1) + pow(*(e+i)/zetaInv, *(distPara + 2)));
+			}
+			break;
+		}
+		case 6: //q-Weibull
+		{
+			double a = *distPara, q = *(distPara + 1), b = 0, aLess1 = 0;
+			b = lgamma(1/(q-1)) - lgamma(1/a) - lgamma(1/(q-1)-1/a-1);
+			b = exp(b) * a * pow(q-1, (1+a)/a) / (2 - q);
+			aLess1 = a - 1;
+
+			LL = log(a*(2-q)/pow(b, a)) * (*N);
+			for (i = 0; i < *N; i++) {
+				LL += aLess1 * log(*(e+i)) + (1/(1-q)) * log(1 - (1-q) * pow(*(e+i)/b, a)) - log(*(mu+i));
+			}
+			break;
+		}
+		case 7: //q-Weibull and exponential discreetly mixed
+		{
+			double p = *distPara, a = *(distPara + 1), q = *(distPara + 2), lambda = *(distPara + 3), b = 0, const1 = 0, const2 = 0;
+			b = lgamma(1/(q-1)) - lgamma(1/a) - lgamma(1/(q-1)-1/a-1);
+			b = exp(b) * a * pow(q-1, (1+a)/a) / (2 - q);
+			b = b * (1 - (1 - p) * lambda) / p;
+
+			const1 = p * (2 - q) * a * pow(b, -a);
+			const2 = (1 - p) / lambda;
+
+			for (i = 0; i < *N; i++) {
+				LL += log( const1 * pow(e[i], a-1) * pow(1 - (1 - q) * pow(e[i]/b, a), 1/(1-q)) + const2 * exp(-e[i]/lambda) ) - log(mu[i]);
+			}
+
+			break;
+		}
+		case 8: //q-Weibull and Weibull discreetly mixed
+		{
+			double p = *distPara, a = *(distPara + 1), q = *(distPara + 2), theta = *(distPara + 3), gamma = *(distPara + 4), b = 0, const1 = 0, const2 = 0;
+			b = lgamma(1/(q-1)) - lgamma(1/a) - lgamma(1/(q-1)-1/a-1);
+			b = exp(b) * a * pow(q-1, (1+a)/a) / (2 - q);
+			b = b * (1 - (1 - p) * pow(theta, -1/gamma) * tgamma(1/gamma + 1)) / p;
+
+			const1 = p * (2 - q) * a * pow(b, -a);
+			const2 = (1 - p) * theta * gamma;
+
+			for (i = 0; i < *N; i++) {
+				LL += log( const1 * pow(e[i], a-1) * pow(1 - (1 - q) * pow(e[i]/b, a), 1/(1-q)) + const2 * pow(e[i], gamma - 1) * exp(-theta * pow(e[i], gamma) ) ) - log(mu[i]);
+			}
+
+			break;
+		}
+		case 9: //"mixinvgauss" - finite inverse Gaussian mixature
+		{
+			double theta = *distPara, lambda = *(distPara + 1), gamma = *(distPara + 2); //, const1 = 0, const2 = 0, const3 = 0;
+			double phi = theta * (1 + theta * theta / lambda / (1 + gamma));
+			//const1 = lambda/2;
+			//const2 = gamma/phi;
+			//const3 = phi * theta * theta;
+
+			//LL = (log(phi*phi/(gamma + theta)) - .5 * (log(2 * M_PI / lambda)) - 1.5 * log(phi)) * (*N); //M_PI is pi
+			LL=0;
+			for (i = 0; i < *N; i++) {
+				//LL += log(const2 + e[i]) - 1.5 * log(e[i]) - const1 * (phi * e[i] - theta) * (phi * e[i] - theta) / (e[i] * const3) - log(mu[i]);
+				LL += -log(mu[i]) + log(gamma * mu[i] + phi * x[i]) - log(gamma + theta) + .5 * (log(lambda) + log(mu[i]) - log(2 * M_PI) - log(phi)) - 1.5 * log(x[i]) - 0.5 * lambda * (phi*x[i]-theta*mu[i]) * (phi*x[i]-theta*mu[i]) /(phi * x[i]*theta*theta*mu[i]);
+			}
+			break;
+		}
+		case 10: //Birnbaum–Saunders
+		{
+			double kappa = *distPara;
+			double const1 = 0;
+					
+			const1 = 1/(2 * kappa * kappa);
+			
+			LL = -log(2 * sqrt(2 * M_PI) * kappa) * (*N); //M_PI is pi
+			for (i = 0; i < *N; i++) {
+				//LL += -log(mu[i]) + log(pow(e[i], -1/2) + pow(e[i], -3/2)) - const1 * (e[i] + 1/e[i] - 2);
+				LL += -log(mu[i]) + log(pow(mu[i]/x[i], 1/2) + pow(mu[i]/x[i], 3/2)) - const1 * (x[i]/mu[i] + mu[i]/x[i] - 2);
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	} else if(*forceErrExpec == 0){ //mean parameter is fixed - mean is not forced to be 1
+		switch (*dist) {
+		case 1: //Exponential distribution
+			for (i = 0; i < *N; i++) {
+				LL += -log(*(mu+i)) - *(e+i);
+			}
+			break;
+		case 2: //Weibull distribution
+			LL = log(distPara[0])  * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += -log(mu[i]) + (distPara[0] - 1) * log(e[i]) - pow(e[i], distPara[0]);
+			}
+			break;
+		case 3: //Burr distribution
+			meanPara = 1;
+
+			LL = (log(meanPara * distPara[0])) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += -log(mu[i]) + (distPara[0] - 1) * log(e[i]) - (1 + 1 / distPara[1]) * log(1 + distPara[1] * meanPara * pow(e[i], distPara[0]));
+			}
+			break;
+
+			//
+			//			muMultiplier = pow(*(distPara+1), 1+1/(*distPara))*tgamma(1/(*(distPara+1))+1)/(tgamma(1+1/(*distPara))*tgamma(1/(*(distPara+1))-1/(*distPara)));
+			//			for (i = 0; i < *N; i++) {
+			//				LL += log((*distPara))-(*distPara)*log(*(mu+i)*muMultiplier)+((*distPara)-1)*log(*(x+i))-(1/(*(distPara+1))+1)*log(1+(*(distPara+1))*pow(*(x+i)/(*(mu+i)*muMultiplier), (*distPara)));
+			//			}
+			//			break;
+		case 4: //Generalized Gamma distribution
+		{
+			double lnDelta, alphDelt, lnGamm;
+			lnDelta = log(*(distPara + 1));
+			alphDelt = (*distPara) * (*(distPara + 1)) - 1;
+			lnGamm = lgamma(*distPara);
+			LL = (lnDelta - lnGamm) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += alphDelt * log(*(e+i)) - pow((*(e+i)), *(distPara + 1)) - log(*(mu+i));
+			}
+			break;
+		}
+		case 5: //Generalized F distribution
+		{
+			double lnbetaFnPart, am, amLess1, etaPm;
+			lnbetaFnPart = lgamma(*distPara + (*(distPara+1))) - lgamma(*distPara) - lgamma(*(distPara+1));
+			am = *(distPara + 2) * (*distPara);
+			amLess1 = am - 1;
+			etaPm = *(distPara + 1) + (*distPara);
+			LL = (lnbetaFnPart + log(*(distPara + 2)) + *(distPara + 1)*log(*(distPara + 1))) * (*N); //multiplies the constant terms with N outside of the loop below
+			for (i = 0; i < *N; i++) {
+				LL += -am * log(*(mu+i)) + amLess1 * log(*(x+i)) - etaPm * log(*(distPara + 1) + pow(*(e+i), *(distPara + 2)));
+			}
+			break;
+		}
+		case 6: //q-Weibull
+				{
+					double a = *distPara, q = *(distPara + 1), aLess1 = 0;
+					aLess1 = a - 1;
+
+					LL = log(a * (2 - q)) * (*N);
+					for (i = 0; i < *N; i++) {
+						LL += aLess1 * log(*(e+i)) + (1/(1-q)) * log(1 - (1-q) * pow(*(e+i), a)) - log(*(mu+i));
+					}
+					break;
+				}
+		case 7: //q-Weibull and exponential discreetly mixed
+		{
+			double p = *distPara, a = *(distPara + 1), q = *(distPara + 2), lambda = *(distPara + 3), b = 0, const1 = 0, const2 = 0;
+			b = 1;
+
+			const1 = p*(2-q)*a/pow(b, a);
+			const2 = (1-p)/lambda;
+
+			for (i = 0; i < *N; i++) {
+				LL += log( const1 * pow(e[i], a-1) * pow(1 - (1 - q) * pow(e[i]/b, a), 1/(1-q)) + const2 * exp(-e[i]/lambda) ) - log(mu[i]);
+			}
+
+			break;
+		}
+		case 8: //q-Weibull and Weibull discreetly mixed
+		{
+			double p = *distPara, a = *(distPara + 1), q = *(distPara + 2), theta = *(distPara + 3), gamma = *(distPara + 4), b = 0, const1 = 0, const2 = 0;
+			b = 1;
+			const2 = (1 - p) * theta * gamma;
+
+			for (i = 0; i < *N; i++) {
+				LL += log( const1 * pow(e[i], a-1) * pow(1 - (1 - q) * pow(e[i]/b, a), 1/(1-q)) + const2 * pow(e[i], gamma - 1) * exp(-theta * pow(e[i], gamma) ) ) - log(mu[i]);
+			}
+
+			break;
+		}
+		case 9: //"mixinvgauss" - finite inverse Gaussian mixature
+		{
+			double theta = *distPara, lambda = *(distPara + 1), gamma = *(distPara + 2); //, const1 = 0, const2 = 0, const3 = 0;
+			double phi = 1;
+			//const1 = lambda/2;
+			//const2 = gamma/phi;
+			//const3 = phi * theta * theta;
+
+			//LL = (log(phi*phi/(gamma + theta)) - .5 * (log(2 * M_PI / lambda)) - 1.5 * log(phi)) * (*N); //M_PI is pi
+			LL=0;
+			for (i = 0; i < *N; i++) {
+				//LL += log(const2 + e[i]) - 1.5 * log(e[i]) - const1 * (phi * e[i] - theta) * (phi * e[i] - theta) / (e[i] * const3) - log(mu[i]);
+				LL += -log(mu[i]) + log(gamma * mu[i] + phi * x[i]) - log(gamma + theta) + .5 * (log(lambda) + log(mu[i]) - log(2 * M_PI) - log(phi)) - 1.5 * log(x[i]) - 0.5 * lambda * (phi*x[i]-theta*mu[i]) * (phi*x[i]-theta*mu[i]) /(phi * x[i]*theta*theta*mu[i]);
+			}
+			break;
+
+		}
+		case 10: //Birnbaum–Saunders
+		{
+			double kappa = *distPara;
+			double const1 = 0;
+
+			const1 = 1/(2 * kappa * kappa);
+
+			LL = -log(2 * sqrt(2 * M_PI) * kappa) * (*N); //M_PI is pi
+			for (i = 0; i < *N; i++) {
+				LL += -log(mu[i]) + log(pow(e[i], -1/2) + pow(e[i], -3/2)) - const1 * (e[i] + 1/e[i] - 2);
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	return(LL);
+}
+//END---getLL_dist-------------------------------------//
+
+//START---getLL_ACDcall----------------------------//
+SEXP getLL_ACDcall(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) pmu[i] += REAL(par)[j] * px[i - j]; //adds the lagged durations
+			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + q] * pmu[i - j]; //adds the lagged mus
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_ACDcall----------------------------//
+
+
+
+//START---getLL_BACDcall----------------------------//
+SEXP getLL_BACDcall(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	double poweredMu[N]; //the mus to the d[0] power
+	double d[2] = {REAL(par)[1 + p + q], REAL(par)[2 + p + q]};
+	double a[p], b[q];
+
+	for(j = 0; j < p; j++)
+		a[j] = REAL(par)[j + 1];	
+	for(j = 0; j < q; j++)
+		b[j] = REAL(par)[j + 1 + p];	
+	
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+			poweredMu[i] = pow(REAL(mean)[0], d[0]);
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			poweredMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 0; j < p; j++) poweredMu[i] += a[j] * pow(presi[i - j - 1], d[1]); //adds the p-part
+			for(j = 0; j < q; j++) poweredMu[i] += b[j] * poweredMu[i - j - 1]; //adds the q-part				
+
+			pmu[i] = pow(poweredMu[i], 1/d[0]);
+			presi[i] = px[i]/pmu[i];
+		}
+					
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_BACDcall----------------------------//
+
+//START---getLL_ABACDcall----------------------------//
+SEXP getLL_ABACDcall(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	double poweredMu[N]; //the mus to the d[0] power
+	double d[2] = {REAL(par)[2+2*p+q], REAL(par)[3+2*p+q]};
+	double v = REAL(par)[1+2*p+q];
+	double a[p], b[q], c[p];
+
+	for(j = 0; j < p; j++){
+		a[j] = REAL(par)[j + 1];
+		c[j] = REAL(par)[j + p + 1];
+	}
+	for(j = 0; j < q; j++)
+		b[j] = REAL(par)[j + 1 + 2 * p];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+			poweredMu[i] = pow(REAL(mean)[0], d[0]);
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			poweredMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 0; j < p; j++) poweredMu[i] += a[j]*pow(fabs(presi[i - j - 1] - v) + c[j] * (presi[i - j - 1] - v), d[1]); //adds the p-part
+			for(j = 0; j < q; j++) poweredMu[i] += b[j]*poweredMu[i - j - 1]; //adds the q-part
+			
+			pmu[i] = pow(poweredMu[i], 1/d[0]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_ABACDcall----------------------------//
+
+//START---getLL_AMACDcall----------------------------//
+SEXP getLL_AMACDcall(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], r = INTEGER(order)[1], q = INTEGER(order)[2];
+	int maxpqr = max(max(p, q), r);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpqr;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) pmu[i] += REAL(par)[j] * px[i - j]; //adds the lagged durations
+			for(j = 1; j <= r; j++) pmu[i] += REAL(par)[j + p] * presi[i - 1];  //adds the lagged residuals
+			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + r + p] * pmu[i - j]; //adds the lagged mus
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpqr, N);
+	} while (stopIndex != N);	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_AMACDcall----------------------------//
+
+
+
+//START---getLL_LACD1call----------------------------//
+SEXP getLL_LACD1call(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+	double logMu[N];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			logMu[i] = log(REAL(mean)[0]);
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			logMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * log(presi[i - j]); //adds the lagged durations
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + q] * logMu[i - j]; //adds the lagged mus
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_LACD1call----------------------------//
+
+//START---getLL_LACD2call----------------------------//
+SEXP getLL_LACD2call(
+		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px;
+	int *pnewDay;
+	px = REAL(x);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+	double logMu[N];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			logMu[i] = log(REAL(mean)[0]);
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			logMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * presi[i - j]; //adds the lagged durations
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + q] * logMu[i - j]; //adds the lagged mus
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_LACD2call----------------------------//
+
+//START---getLL_SNIACDcall----------------------------//
+SEXP getLL_SNIACDcall(		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP bp,
+		SEXP forceErrExpec){
+
+int p = INTEGER(order)[0], q = INTEGER(order)[1];
+int maxpq = max(p, q);
+int i = 0;
+int j = 1;
+int k = 0;
+int nextND=0;
+int startIndex = 0, stopIndex = maxpq;
+
+double *px;
+int *pnewDay;
+px = REAL(x);
+pnewDay = INTEGER(newDay);
+
+int N = length(x), NnewDays = length(newDay);
+if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+SEXP mu, resi;
+PROTECT(mu = NEW_NUMERIC(N));
+PROTECT(resi = NEW_NUMERIC(N));
+double *pmu, *presi;
+pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+int M = length(bp);
+double a[p], b[q], c[M+1]; //parameters
+
+//puts the parameter pointers to local variables for easier interpretation:
+for(j = 0; j < (M+1); j++){
+	c[j] = REAL(par)[j+1];
+}
+a[0] = 0;
+for(j = 1; j < (p-1); j++){
+	a[j] = REAL(par)[j+1+M];
+}
+for(j = 0; j < q; j++){
+	b[j] = REAL(par)[j+1+M+p];
+}
+
+
+
+do {
+	//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+	for (i = startIndex; i < stopIndex; i++){
+		pmu[i] = REAL(mean)[0];
+		presi[i] = px[i]/pmu[i];
+	}
+	startIndex = stopIndex;
+	if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+	else stopIndex = N;
+	for(i = startIndex; i < stopIndex; i++){
+		pmu[i] = REAL(par)[0]; //adds the constant
+
+		for(j = 0; j < p; j++){
+			pmu[i] += (c[0] + a[j]) * presi[i-j-1];
+			k = 0;
+			while(presi[i-j-1] >= REAL(bp)[k] && k < M){
+				pmu[i] += (c[k+1] + a[j])*(presi[i-j-1] - REAL(bp)[k]);
+				k++;
+			}
+		}
+
+		for(j = 0; j < q; j++) pmu[i] += b[j]* pmu[i - j - 1]; //adds the q-part
+		presi[i] = px[i]/pmu[i]; //computes the residual
+	}
+	startIndex = stopIndex;
+	stopIndex = min(stopIndex + maxpq, N);
+} while (stopIndex != N);
+
+SEXP list, LL;
+PROTECT(LL = NEW_NUMERIC(1));
+PROTECT(list = NEW_LIST(3));
+
+REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+
+SET_VECTOR_ELT(list, 0, mu);
+SET_VECTOR_ELT(list, 1, resi);
+SET_VECTOR_ELT(list, 2, LL);
+
+UNPROTECT(4);
+return list;
+}
+//END---getLL_SNIACDcall----------------------------//
+
+
+//START---getLL_logSNIACDcall----------------------------//
+SEXP getLL_logSNIACDcall(		SEXP x,
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP bp,
+		SEXP forceErrExpec){
+
+int p = INTEGER(order)[0], q = INTEGER(order)[1];
+int maxpq = max(p, q);
+int i = 0;
+int j = 1;
+int k = 0;
+int nextND=0;
+int startIndex = 0, stopIndex = maxpq;
+
+double *px;
+int *pnewDay;
+px = REAL(x);
+pnewDay = INTEGER(newDay);
+
+int N = length(x), NnewDays = length(newDay);
+if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+SEXP mu, resi;
+PROTECT(mu = NEW_NUMERIC(N));
+PROTECT(resi = NEW_NUMERIC(N));
+double logMu[N];
+double *pmu, *presi;
+pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+int M = length(bp);
+double a[p], b[q], c[M+1]; //parameters
+
+//puts the parameter pointers to local variables for easier interpretation:
+for(j = 0; j < (M+1); j++){
+	c[j] = REAL(par)[j+1];
+}
+a[0] = 0;
+for(j = 1; j < (p-1); j++){
+	a[j] = REAL(par)[j+1+M];
+}
+for(j = 0; j < q; j++){
+	b[j] = REAL(par)[j+1+M+p];
+}
+
+do {
+	//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+	for (i = startIndex; i < stopIndex; i++){
+		
+		pmu[i] = REAL(mean)[0];
+		logMu[i] = log(pmu[i]);
+		presi[i] = px[i]/pmu[i];
+	}
+	startIndex = stopIndex;
+	if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+	else stopIndex = N;
+	for(i = startIndex; i < stopIndex; i++){
+		logMu[i] = REAL(par)[0]; //adds the constant
+
+		for(j = 0; j < p; j++){
+			logMu[i] += (c[0] + a[j]) * presi[i-j-1];
+			k = 0;
+			while(presi[i-j-1] >= REAL(bp)[k] && k < M){
+				logMu[i] += (c[k+1] + a[j])*(presi[i-j-1] - REAL(bp)[k]);
+				k++;
+			}
+		}
+
+		for(j = 0; j < q; j++) logMu[i] += b[j]* logMu[i - j - 1]; //adds the q-part
+		
+		pmu[i] = exp(logMu[i]);
+		presi[i] = px[i]/pmu[i]; //computes the residual
+	}
+	startIndex = stopIndex;
+	stopIndex = min(stopIndex + maxpq, N);
+} while (stopIndex != N);
+
+SEXP list, LL;
+PROTECT(LL = NEW_NUMERIC(1));
+PROTECT(list = NEW_LIST(3));
+
+REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+
+SET_VECTOR_ELT(list, 0, mu);
+SET_VECTOR_ELT(list, 1, resi);
+SET_VECTOR_ELT(list, 2, LL);
+
+UNPROTECT(4);
+return list;
+}
+//END---getLL_logSNIACDcall----------------------------//
