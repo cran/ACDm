@@ -1,6 +1,6 @@
 Package: ACDm
-Version: 1.0.2
-Date: 2015-07-16
+Version: 1.0.3
+Date: 2015-12-01
 Title: Tools for Autoregressive Conditional Duration Models
 Author: Markus Belfrage
 Depends: R(>= 2.10.0)
@@ -11,6 +11,6 @@ Description: Package for Autoregressive Conditional Duration (ACD, Engle and Rus
 LazyData: yes
 NeedsCompilation: yes
 License: GPL (>= 2)
-Packaged: 2015-07-16 08:44:13 UTC; Markus
+Packaged: 2015-12-02 15:23:59 UTC; Markus
 Repository: CRAN
-Date/Publication: 2015-07-16 14:24:13
+Date/Publication: 2015-12-03 13:32:55

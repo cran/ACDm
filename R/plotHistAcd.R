@@ -16,5 +16,5 @@ plotHistAcd <- function(durations, windowunit = "mins", window = 1){
   df <- data.frame(time = as.POSIXlt(names(meandur)), meandur = meandur)
   
   g <- ggplot(df, aes(x = time, y = meandur))
-  g + geom_histogram(stat = "identity") + ggtitle(paste(window, windowunit, "means"))
+  g + geom_bar(stat = "identity") + ggtitle(paste(window, windowunit, "means"))
 }

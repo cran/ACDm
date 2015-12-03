@@ -1,4 +1,3 @@
-#the vector nodes is in unit minutes after midnight and must include both the start and end of the trading day (if method = "cubicSpline")
 diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60), 1105), aggregation = "all", span = "cv", spar = 0, Q = 4, returnSplineFnc = FALSE){
   
   durations <- spline.x <- spline.y <- day <- x <- y <- time <- NULL
@@ -18,9 +17,25 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
     
     timeInMinutes <- dur$time$hour * 60 + dur$time$min
     timeInterval <- numeric(nrow(dur))
+    
+    if (any(timeInMinutes < nodes[1] |
+            timeInMinutes > nodes[length(nodes)]))
+      stop(
+        "\nAt least one of the durations occured outside of the nodes. \nThe smallest and largest nodes should be at the opening and closing time."
+      )
+    if (nodes[length(nodes) - 1] > max(timeInMinutes))
+      warning(
+        "no durations occured at the latest interval. Check if the 'node' argument is correctly specified"
+      )
+    if (nodes[1] < min(timeInMinutes))
+      warning(
+        "no durations occured at the first interval. Check if the 'node' argument is correctly specified"
+      )
+    
     for(i in 1:(length(nodes)-1)){  
       timeInterval <- timeInterval + ifelse((timeInMinutes>=nodes[i] & timeInMinutes<nodes[i+1]),(nodes[i] + nodes[i+1])/2,0)  #all observations are given its mid interval value 
-    }      
+    }  
+    
     timeInterval <- timeInterval + ifelse(timeInMinutes == nodes[length(nodes)], (nodes[length(nodes)-1] + nodes[length(nodes)])/2,0)
     
     if(aggregation == "all"){

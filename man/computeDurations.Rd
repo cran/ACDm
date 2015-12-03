@@ -9,7 +9,7 @@ Computes durations from a data.frame containing the time stamps of transactions.
 }
 \usage{
 computeDurations(transactions, open = "10:00:00", close = "18:25:00", 
-rm0dur = TRUE, type = "trade", priceDiff = 0, cumVol = 0)
+rm0dur = TRUE, type = "trade", priceDiff = .1, cumVol = 10000)
 }
 \arguments{
   \item{transactions}{
@@ -64,9 +64,9 @@ a data.frame with columns:
 Markus Belfrage
 }
 \examples{
-#uses only the first week of the example data to shorten run time:
-durDataShort <- computeDurations(transData[56701, ])
+\dontrun{
+#only the first 3 days of data:
+durDataShort <- computeDurations(transData[1:56700, ]) 
 str(durDataShort)
-head(durDataShort)
-
+head(durDataShort)}
 }

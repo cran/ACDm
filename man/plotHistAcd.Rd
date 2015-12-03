@@ -27,5 +27,8 @@ Markus Belfrage
 \examples{
 plotHistAcd(durData, windowunit = "days", window = 1)
 
+\dontrun{
+
 plotHistAcd(durData, windowunit = "mins", window = 30)
+}
 }

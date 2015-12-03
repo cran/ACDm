@@ -28,9 +28,7 @@ if \code{TRUE} a kernel density estimate will be added
 Markus Belfrage
 }
 \examples{
-
-#uses only the first three days of the example data to shorten run time:
-fitModelBurr <- acdFit(adjDurData[1:12516, ], dist = "burr")
-resiDensityAcd(fitModelBurr)
-
+\dontrun{
+fitModelBurr <- acdFit(adjDurData, dist = "burr")
+resiDensityAcd(fitModelBurr)}
 }

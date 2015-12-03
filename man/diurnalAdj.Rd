@@ -50,10 +50,13 @@ Markus Belfrage
 \examples{
 diurnalAdj(durData, aggregation = "none", method = "supsmu")
 
+\dontrun{
+
 head(durData)
 f <- diurnalAdj(durData, aggregation = "weekdays", method = "FFF", Q = 3)
 head(f)
 
 f <- diurnalAdj(durData, aggregation = "all", returnSplineFnc = TRUE)
 f
+}
 }

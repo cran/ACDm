@@ -16,5 +16,5 @@ The \code{durData} data.frame is simply the trade durations formed from \code{tr
 
 The \code{adjDurData} data object is in turn created by \code{adjDurData <- diurnalAdj(durData, aggregation = "all")} to add diurnally adjusted durations.
 
-\code{defaultSplineObj}
+\code{defaultSplineObj} is an estimated cubic spline of the diurnal component using the sample data. It is used when simulating from \code{sim_ACD()} with the argument \code{diurnalFactor} set to \code{TRUE}, when no user \code{splineObj} is provided.
 }

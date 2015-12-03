@@ -22,6 +22,6 @@ a positive integer giving the length of the interval.
 }
 }
 \examples{
-#uses only the first three days of the example data to shorten run time:
-plotDescTrans(transData[1:35005, ], windowunit = "hours", window = 1)
+\dontrun{
+plotDescTrans(transData, windowunit = "hours", window = 1)}
 }

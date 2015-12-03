@@ -47,9 +47,11 @@ value passed as \code{smooth} argument to ggplot2. See \link{stat_smooth}.
 Markus Belfrage
 }
 \examples{
+\dontrun{
+
 # The mean residuals are too small for small values of the estimated conditional 
 # mean, suggesting a need for a different conditional mean model specification:
 fitModel <- acdFit(adjDurData)
 plotScatterAcd(fitModel, x = "muHats", y = "residuals")
-
+}
 }

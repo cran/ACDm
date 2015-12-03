@@ -54,8 +54,11 @@ plotHazard(fitModel, breaks = 20, implied = TRUE, xstop)
 }
 
 \examples{  
+\dontrun{
+
 fitModelWei <- acdFit(adjDurData, dist = "wei")
 plotHazard(fitModelWei)
+}
 
 }
 
