@@ -1,6 +1,18 @@
 \name{NEWS}
 \title{News for Package 'ACDm'}
 
+\section{Changes in ACDm version 1.0.4 (2016-07-15)}{
+
+    \itemize{
+      \item One can now use exogenous regressors when fitting ACD models using \code{acdFit()}. See the function's help page.
+      \item Fixed a bug in the internal C functions getLL_ACDcall, getLL_LACD1call, and getLL_LACD2call that unabled estimating ACD(p, q), LACD1(p, q), and LACD2(p, q) models when p differed from q.
+      \item Added the \code{predict()} method.
+      \item Added the \code{plotLL()} function.
+      \item Changed how the \code{trace} argument inside the \code{control} list in the \code{acdFit()} function works. It will now plot the MLE search path, recorded as the parameter values each time the optimization function calls the log likelihood.
+    } 
+
+}
+
 \section{Changes in ACDm version 1.0.3 (2015-12-01)}{
 
     \itemize{
@@ -18,7 +30,7 @@
     }
     \subsection{For the function \code{diurnalAdj()}:}{
     	  \itemize{
-          \item for \code{method = "cubicSpline"}: now checks if the timestamps of the durations are within the range of the \code{nodes} argument. 
+          \item for \code{method = "cubicSpline"}: now checks if the time stamps of the durations are within the range of the \code{nodes} argument. 
     }
     }
   

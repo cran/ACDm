@@ -11,6 +11,25 @@ residuals.acdFit <- function(object, ...){
   object$residuals
 }
 
+predict.acdFit <- function(object, N = 10, ...){
+  
+  k <- max(object$order)
+  endMu = utils::tail(object$muHats, k) #the end of the estimated expected durations of the fitted model
+  if(length(object$durations$adjDur) != 0) 
+    endDurations <- utils::tail(object$durations$adjDur, k) #the end of the durations of the fitted model
+  else #no 'adjDur' column
+    endDurations <- utils::tail(object$durations$durations, k) #the end of the durations of the fitted model
+  
+  errorExpectation <- 1
+  #if the fitted model didn't have a forced error expectation = 1, the mean of the residuals is instead used:
+  if(object$forceErrExpec == FALSE) errorExpectation <- mean(object$residuals) 
+  
+  #"simulates" with error terms equal to their expectation, starting from the endpoints of the original data set
+  sim_ACD(N = N, param = stats::coef(object), Nburn = length(endDurations), startX = endDurations, 
+          startMu = endMu, errors = errorExpectation)
+  
+}
+
 print.acdFit <- function(x, ...){
   
   if(x$distribution == "exponential") {

@@ -319,7 +319,7 @@ SEXP getLL_ACDcall(
 		for(i = startIndex; i < stopIndex; i++){
 			pmu[i] = REAL(par)[0]; //adds the constant
 			for(j = 1; j <= p; j++) pmu[i] += REAL(par)[j] * px[i - j]; //adds the lagged durations
-			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + q] * pmu[i - j]; //adds the lagged mus
+			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + p] * pmu[i - j]; //adds the lagged mus
 			presi[i] = px[i]/pmu[i];
 		}
 		startIndex = stopIndex;
@@ -343,7 +343,153 @@ SEXP getLL_ACDcall(
 }
 //END---getLL_ACDcall----------------------------//
 
+//START---getLL_ACDcallEx----------------------------//
+SEXP getLL_ACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
 
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	//printf("length(z): %d \n", length(z));
+	//printf("k = length(z)/N: %d \n", k);
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) pmu[i] += REAL(par)[j] * px[i - j]; //adds the lagged durations
+			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + p] * pmu[i - j]; //adds the lagged mus
+			for(j = 0; j <= k - 1; j++) pmu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_ACDcallEx----------------------------//
+
+//START---getLL_LACD1callEx----------------------------//
+SEXP getLL_LACD1callEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+	double logMu[N];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			logMu[i] = log(REAL(mean)[0]);
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			logMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * log(presi[i - j]); //adds the lagged durations
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + p] * logMu[i - j]; //adds the lagged mus
+			for(j = 0; j <= k - 1; j++) logMu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_LACD1callEx----------------------------//
 
 //START---getLL_BACDcall----------------------------//
 SEXP getLL_BACDcall(
@@ -423,6 +569,89 @@ SEXP getLL_BACDcall(
 	return list;
 }
 //END---getLL_BACDcall----------------------------//
+
+//START---getLL_BACDcallEx----------------------------//
+SEXP getLL_BACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	double poweredMu[N]; //the mus to the d[0] power
+	double d[2] = {REAL(par)[1 + p + q], REAL(par)[2 + p + q]};
+	double a[p], b[q];
+
+	for(j = 0; j < p; j++)
+		a[j] = REAL(par)[j + 1];	
+	for(j = 0; j < q; j++)
+		b[j] = REAL(par)[j + 1 + p];	
+	
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+			poweredMu[i] = pow(REAL(mean)[0], d[0]);
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			poweredMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 0; j < p; j++) poweredMu[i] += a[j] * pow(presi[i - j - 1], d[1]); //adds the p-part
+			for(j = 0; j < q; j++) poweredMu[i] += b[j] * poweredMu[i - j - 1]; //adds the q-part				
+			for(j = 0; j <= k - 1; j++) poweredMu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			
+			pmu[i] = pow(poweredMu[i], 1/d[0]);
+			presi[i] = px[i]/pmu[i];
+		}
+					
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_BACDcallEx----------------------------//
 
 //START---getLL_ABACDcall----------------------------//
 SEXP getLL_ABACDcall(
@@ -505,6 +734,91 @@ SEXP getLL_ABACDcall(
 }
 //END---getLL_ABACDcall----------------------------//
 
+//START---getLL_ABACDcallEx----------------------------//
+SEXP getLL_ABACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	double poweredMu[N]; //the mus to the d[0] power
+	double d[2] = {REAL(par)[2+2*p+q], REAL(par)[3+2*p+q]};
+	double v = REAL(par)[1+2*p+q];
+	double a[p], b[q], c[p];
+
+	for(j = 0; j < p; j++){
+		a[j] = REAL(par)[j + 1];
+		c[j] = REAL(par)[j + p + 1];
+	}
+	for(j = 0; j < q; j++)
+		b[j] = REAL(par)[j + 1 + 2 * p];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+			poweredMu[i] = pow(REAL(mean)[0], d[0]);
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			poweredMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 0; j < p; j++) poweredMu[i] += a[j]*pow(fabs(presi[i - j - 1] - v) + c[j] * (presi[i - j - 1] - v), d[1]); //adds the p-part
+			for(j = 0; j < q; j++) poweredMu[i] += b[j]*poweredMu[i - j - 1]; //adds the q-part
+			for(j = 0; j <= k - 1; j++) poweredMu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			
+			pmu[i] = pow(poweredMu[i], 1/d[0]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_ABACDcallEx----------------------------//
+
 //START---getLL_AMACDcall----------------------------//
 SEXP getLL_AMACDcall(
 		SEXP x,
@@ -572,7 +886,76 @@ SEXP getLL_AMACDcall(
 }
 //END---getLL_AMACDcall----------------------------//
 
+//START---getLL_AMACDcallEx----------------------------//
+SEXP getLL_AMACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
 
+
+	int p = INTEGER(order)[0], r = INTEGER(order)[1], q = INTEGER(order)[2];
+	int maxpqr = max(max(p, q), r);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpqr;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(mean)[0];
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			pmu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) pmu[i] += REAL(par)[j] * px[i - j]; //adds the lagged durations
+			for(j = 1; j <= r; j++) pmu[i] += REAL(par)[j + p] * presi[i - 1];  //adds the lagged residuals
+			for(j = 1; j <= q; j++) pmu[i] += REAL(par)[j + r + p] * pmu[i - j]; //adds the lagged mus
+			for(j = 0; j <= k - 1; j++) pmu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpqr, N);
+	} while (stopIndex != N);	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_AMACDcallEx----------------------------//
 
 //START---getLL_LACD1call----------------------------//
 SEXP getLL_LACD1call(
@@ -620,7 +1003,7 @@ SEXP getLL_LACD1call(
 		for(i = startIndex; i < stopIndex; i++){
 			logMu[i] = REAL(par)[0]; //adds the constant
 			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * log(presi[i - j]); //adds the lagged durations
-			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + q] * logMu[i - j]; //adds the lagged mus
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + p] * logMu[i - j]; //adds the lagged mus
 			pmu[i] = exp(logMu[i]);
 			presi[i] = px[i]/pmu[i];
 		}
@@ -691,7 +1074,7 @@ SEXP getLL_LACD2call(
 		for(i = startIndex; i < stopIndex; i++){
 			logMu[i] = REAL(par)[0]; //adds the constant
 			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * presi[i - j]; //adds the lagged durations
-			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + q] * logMu[i - j]; //adds the lagged mus
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + p] * logMu[i - j]; //adds the lagged mus
 			pmu[i] = exp(logMu[i]);
 			presi[i] = px[i]/pmu[i];
 		}
@@ -715,6 +1098,81 @@ SEXP getLL_LACD2call(
 	return list;
 }
 //END---getLL_LACD2call----------------------------//
+
+//START---getLL_LACD2callEx----------------------------//
+SEXP getLL_LACD2callEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP forceErrExpec){
+
+
+	int p = INTEGER(order)[0], q = INTEGER(order)[1];
+	int maxpq = max(p, q);
+	int i = 0;
+	int j = 1;
+	int nextND=0;
+	int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+	int *pnewDay;
+	px = REAL(x);
+	pz = REAL(z);
+	pnewDay = INTEGER(newDay);
+
+	int N = length(x), NnewDays = length(newDay);
+	int k = (int)(length(z)/N); //the number of exogenous variables 
+	if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+	SEXP mu, resi;
+	PROTECT(mu = NEW_NUMERIC(N));
+	PROTECT(resi = NEW_NUMERIC(N));
+	double *pmu, *presi;
+	pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+	double logMu[N];
+
+	do {
+		//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+		for (i = startIndex; i < stopIndex; i++){
+			logMu[i] = log(REAL(mean)[0]);
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+		else stopIndex = N;
+		for(i = startIndex; i < stopIndex; i++){
+			logMu[i] = REAL(par)[0]; //adds the constant
+			for(j = 1; j <= p; j++) logMu[i] += REAL(par)[j] * presi[i - j]; //adds the lagged durations
+			for(j = 1; j <= q; j++) logMu[i] += REAL(par)[j + p] * logMu[i - j]; //adds the lagged mus
+			for(j = 0; j <= k - 1; j++) logMu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			pmu[i] = exp(logMu[i]);
+			presi[i] = px[i]/pmu[i];
+		}
+		startIndex = stopIndex;
+		stopIndex = min(stopIndex + maxpq, N);
+	} while (stopIndex != N);
+	
+	
+	
+	SEXP list, LL;
+	PROTECT(LL = NEW_NUMERIC(1));
+	PROTECT(list = NEW_LIST(3));
+
+	SET_VECTOR_ELT(list, 0, mu);
+	SET_VECTOR_ELT(list, 1, resi);
+
+	REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), INTEGER(forceErrExpec));
+	SET_VECTOR_ELT(list, 2, LL);
+
+	UNPROTECT(4);
+	return list;
+}
+//END---getLL_LACD2callEx----------------------------//
 
 //START---getLL_SNIACDcall----------------------------//
 SEXP getLL_SNIACDcall(		SEXP x,
@@ -808,6 +1266,104 @@ return list;
 }
 //END---getLL_SNIACDcall----------------------------//
 
+//START---getLL_SNIACDcallEx----------------------------//
+SEXP getLL_SNIACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP bp,
+		SEXP forceErrExpec){
+
+int p = INTEGER(order)[0], q = INTEGER(order)[1];
+int maxpq = max(p, q);
+int i = 0;
+int j = 1;
+int k = 0;
+int nextND=0;
+int startIndex = 0, stopIndex = maxpq;
+
+	double *px, *pz;
+int *pnewDay;
+px = REAL(x);
+pz = REAL(z);
+pnewDay = INTEGER(newDay);
+
+int N = length(x), NnewDays = length(newDay);
+int g = (int)(length(z)/N); //the number of exogenous variables 
+if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+SEXP mu, resi;
+PROTECT(mu = NEW_NUMERIC(N));
+PROTECT(resi = NEW_NUMERIC(N));
+double *pmu, *presi;
+pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+int M = length(bp);
+double a[p], b[q], c[M+1]; //parameters
+
+//puts the parameter pointers to local variables for easier interpretation:
+for(j = 0; j < (M+1); j++){
+	c[j] = REAL(par)[j+1];
+}
+a[0] = 0;
+for(j = 1; j < (p-1); j++){
+	a[j] = REAL(par)[j+1+M];
+}
+for(j = 0; j < q; j++){
+	b[j] = REAL(par)[j+1+M+p];
+}
+
+
+
+do {
+	//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+	for (i = startIndex; i < stopIndex; i++){
+		pmu[i] = REAL(mean)[0];
+		presi[i] = px[i]/pmu[i];
+	}
+	startIndex = stopIndex;
+	if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+	else stopIndex = N;
+	for(i = startIndex; i < stopIndex; i++){
+		pmu[i] = REAL(par)[0]; //adds the constant
+
+		for(j = 0; j < p; j++){
+			pmu[i] += (c[0] + a[j]) * presi[i-j-1];
+			k = 0;
+			while(presi[i-j-1] >= REAL(bp)[k] && k < M){
+				pmu[i] += (c[k+1] + a[j])*(presi[i-j-1] - REAL(bp)[k]);
+				k++;
+			}
+		}
+
+		for(j = 0; j < q; j++) pmu[i] += b[j]* pmu[i - j - 1]; //adds the q-part
+		for(j = 0; j <= g - 1; j++) pmu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			
+		presi[i] = px[i]/pmu[i]; //computes the residual
+	}
+	startIndex = stopIndex;
+	stopIndex = min(stopIndex + maxpq, N);
+} while (stopIndex != N);
+
+SEXP list, LL;
+PROTECT(LL = NEW_NUMERIC(1));
+PROTECT(list = NEW_LIST(3));
+
+REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), 
+INTEGER(forceErrExpec));
+
+SET_VECTOR_ELT(list, 0, mu);
+SET_VECTOR_ELT(list, 1, resi);
+SET_VECTOR_ELT(list, 2, LL);
+
+UNPROTECT(4);
+return list;
+}
+//END---getLL_SNIACDcallEx----------------------------//
 
 //START---getLL_logSNIACDcall----------------------------//
 SEXP getLL_logSNIACDcall(		SEXP x,
@@ -903,3 +1459,105 @@ UNPROTECT(4);
 return list;
 }
 //END---getLL_logSNIACDcall----------------------------//
+
+
+//START---getLL_logSNIACDcallEx----------------------------//
+SEXP getLL_logSNIACDcallEx(
+		SEXP x,
+		SEXP z, //the exogenous regressors
+		SEXP par,
+		SEXP order,
+		SEXP mean,
+		SEXP dist,
+		SEXP distPara,
+		SEXP newDay,
+		SEXP bp,
+		SEXP forceErrExpec){
+
+int p = INTEGER(order)[0], q = INTEGER(order)[1];
+int maxpq = max(p, q);
+int i = 0;
+int j = 1;
+int k = 0;
+int nextND=0;
+int startIndex = 0, stopIndex = maxpq;
+
+double *px, *pz;
+int *pnewDay;
+px = REAL(x);
+pz = REAL(z);
+pnewDay = INTEGER(newDay);
+
+int N = length(x), NnewDays = length(newDay);
+int g = (int)(length(z)/N); //the number of exogenous variables 
+if(NnewDays == 1 && pnewDay[0] == 0) NnewDays = 0;
+SEXP mu, resi;
+PROTECT(mu = NEW_NUMERIC(N));
+PROTECT(resi = NEW_NUMERIC(N));
+double logMu[N];
+double *pmu, *presi;
+pmu = NUMERIC_POINTER(mu); presi = NUMERIC_POINTER(resi);
+
+int M = length(bp);
+double a[p], b[q], c[M+1]; //parameters
+
+//puts the parameter pointers to local variables for easier interpretation:
+for(j = 0; j < (M+1); j++){
+	c[j] = REAL(par)[j+1];
+}
+a[0] = 0;
+for(j = 1; j < (p-1); j++){
+	a[j] = REAL(par)[j+1+M];
+}
+for(j = 0; j < q; j++){
+	b[j] = REAL(par)[j+1+M+p];
+}
+
+do {
+	//in the start of the sample or at the start of a new day, the maxpq mus are set to the mean:
+	for (i = startIndex; i < stopIndex; i++){
+		
+		pmu[i] = REAL(mean)[0];
+		logMu[i] = log(pmu[i]);
+		presi[i] = px[i]/pmu[i];
+	}
+	startIndex = stopIndex;
+	if(nextND < NnewDays) stopIndex = pnewDay[nextND++] - 1;
+	else stopIndex = N;
+	for(i = startIndex; i < stopIndex; i++){
+		logMu[i] = REAL(par)[0]; //adds the constant
+
+		for(j = 0; j < p; j++){
+			logMu[i] += (c[0] + a[j]) * presi[i-j-1];
+			k = 0;
+			while(presi[i-j-1] >= REAL(bp)[k] && k < M){
+				logMu[i] += (c[k+1] + a[j])*(presi[i-j-1] - REAL(bp)[k]);
+				k++;
+			}
+		}
+
+		for(j = 0; j < q; j++) logMu[i] += b[j]* logMu[i - j - 1]; //adds the q-part
+		for(j = 0; j <= g - 1; j++) logMu[i] += REAL(par)[j + 1 + q + p] * pz[i + j * N]; //adds the exogenous variables			
+			
+		pmu[i] = exp(logMu[i]);		
+		presi[i] = px[i]/pmu[i]; //computes the residual
+	}
+	startIndex = stopIndex;
+	stopIndex = min(stopIndex + maxpq, N);
+} while (stopIndex != N);
+
+SEXP list, LL;
+PROTECT(LL = NEW_NUMERIC(1));
+PROTECT(list = NEW_LIST(3));
+
+REAL(LL)[0] = getLL_dist(px, pmu, presi, &N, INTEGER(dist), REAL(distPara), 
+INTEGER(forceErrExpec));
+
+SET_VECTOR_ELT(list, 0, mu);
+SET_VECTOR_ELT(list, 1, resi);
+SET_VECTOR_ELT(list, 2, LL);
+
+UNPROTECT(4);
+return list;
+}
+//END---getLL_logSNIACDcallEx----------------------------//

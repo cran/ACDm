@@ -18,16 +18,18 @@ Exponential (also used for QML), Weibull, Burr, generalized Gamma, and generaliz
 acdFit(durations = NULL, model = "ACD", dist = "exponential", 
     order = NULL, startPara = NULL,  dailyRestart = 0, optimFnc = "optim",
     method = "Nelder-Mead", output = TRUE, bootstrapErrors = FALSE, 
-    forceErrExpec = TRUE, fixedParamPos = NULL, bp = NULL, control = list())
+    forceErrExpec = TRUE, fixedParamPos = NULL, bp = NULL, 
+    exogenousVariables = NULL, control = list())
 }
 
 \arguments{
 
   \item{durations}{
-either a data frame including, at least, a column named 'durations' or 'adjDur' (for adjusted durations), or a vector of durations
+either (1) a data frame including, at least, a column named 'durations' or 'adjDur' (for adjusted durations), or (2) a vector of durations
 }
   \item{model}{
-the conditional mean model specification. Must be one of \code{"ACD"}, \code{"LACD1"}, \code{"LACD2"}, \code{"AMACD"}, \code{"BACD"}, \code{"ABACD"}, \code{"SNIACD"} or \code{"LSNIACD"}. See 'Details' for detailed model specification. 
+the conditional mean model specification. Must be one of \code{"ACD"}, \code{"LACD1"}, \code{"LACD2"}, \code{"AMACD"}, \code{"BACD"}, 
+\code{"ABACD"}, \code{"SNIACD"} or \code{"LSNIACD"}. See 'Details' for detailed model specification. 
 }
   \item{dist}{
 the assumed error term distribution. Must be one of \code{"exponential"}, \code{"weibull"}, \code{"burr"}, \code{"gengamma"}, \code{"genf"}, \code{"qweibull"}, \code{"mixqwe"}, \code{"mixqww"}, or \code{"mixinvgauss"}. See 'Details' for detailed model specification. 
@@ -42,10 +44,10 @@ a vector with parameter values to start the maximization algorithm from. Must be
 if \code{TRUE} the conditional duration will start fresh every new trading day. Can only be used if the \code{durations} arguments included the clock time of the durations, or if the \code{time} argument was provided.
 }
   \item{optimFnc}{
-Specifies which optimization function to use for the estimation. \code{"optim"}, \code{" nlminb"}, \code{"solnp"}, and \code{"optimx"} are available.
+Specifies which optimization function to use for the estimation. \code{"optim"}, \code{"nlminb"}, \code{"solnp"}, and \code{"optimx"} are available.
 }
   \item{method}{
-Argument passed to the optimization function if \code{optimFnc = "optim"} or \code{optimFnc = "optimx"} were chosen. Specifies the optimization algorithm.
+Argument passed to the optimization function if \code{optimFnc = "optim"} or \code{optimFnc = "optimx"} were chosen. Specifies the optimization algorithm. See the help files for \link{optim}, \link{nlminb} or \link{solnp}.
 }
   \item{output}{
 if \code{FALSE} the estimation results won't be printed.
@@ -54,13 +56,16 @@ if \code{FALSE} the estimation results won't be printed.
 if \code{TRUE} the standard errors will be computed by using bootstrap simulations. Currently only works with the standard ACD model.
 }
   \item{forceErrExpec}{
-if \code{TRUE} error terms distribution will be forced to be 1, otherwise the distribution parameter specifying the mean will be set to 1 to ensure identification.
+if \code{TRUE} the expectation of the error terms' distribution will be forced to be 1, otherwise the distribution parameter specifying the mean will be set to 1 to ensure identification.
 }
   \item{fixedParamPos}{
 a logical vector of \code{TRUE} and \code{FALSE}. Can only be used if the argument \code{startPara} were provided, and should be of the same length. Each element represents the respective start parameter and if \code{TRUE}, this parameter will be held fixed when estimating the other parameters.
 }
   \item{bp}{
 used only for the SNIACD or LSNIACD model. A vector of break points.
+}
+  \item{exogenousVariables}{
+specifies the columns in the \code{durations} data.frame that should be used as exogenous variables when fitting the model. Must be a vector, either with the column positions or the names of the columns. It is highly recommended to standardize the exogenous variables before running the estimation.
 }
   \item{control}{
 a list of control values,
@@ -71,7 +76,7 @@ a list of control values,
    }
 
    \item{trace}{
-	value passed on to the maximization algorithm. Higher values give more tracing information during the process of numerical maximization. See the help files for \link{optim}, \link{nlminb} or \link{solnp}.
+	an integer. If this is set to diffrent to 0, the values of the parameters each time the optimization function calls the log likelihood function. This search path of the MLE will then be plotted. Also passed on to the optimization function, see the help files for \link{optim}, \link{nlminb} or \link{solnp}.
    }
 
    \item{B}{
@@ -88,6 +93,9 @@ The family of ACD models are
 \deqn{x_i = \mu_i \epsilon_i,}
 where different specifications of the conditional mean duration \eqn{\mu_i} and the error term \eqn{\epsilon_i} give rise to different models as shown below. 
 
+When exogenous variables are used, they are added in the form of 
+\deqn{\sum_{j=1}^{k} \xi_j z_j} 
+to the right hand side of the equations, where \eqn{z_j} are the exogenous variables.
 
 \strong{Conditional mean duration \eqn{\mu_i} specifications according to the \code{model} argument:}
 \cr
@@ -268,6 +276,8 @@ Lunde, A. (1999):
 
 fitModel <- acdFit(durations = adjDurData, model = "ACD", 
             dist = "exponential", order = c(1,1), dailyRestart = 1)
+
+
 
 }
 

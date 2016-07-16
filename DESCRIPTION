@@ -1,16 +1,16 @@
 Package: ACDm
-Version: 1.0.3
-Date: 2015-12-01
+Version: 1.0.4
+Date: 2016-07-15
 Title: Tools for Autoregressive Conditional Duration Models
 Author: Markus Belfrage
 Depends: R(>= 2.10.0)
-Imports: plyr, dplyr, ggplot2, Rsolnp, zoo, graphics
-Suggests: optimx
+Imports: plyr, dplyr, ggplot2, Rsolnp, zoo, graphics,
+Suggests: optimx, rgl,
 Maintainer: Markus Belfrage <markus.belfrage@gmail.com>
 Description: Package for Autoregressive Conditional Duration (ACD, Engle and Russell, 1998) models. Creates trade, price or volume durations from transactions (tic) data, performs diurnal adjustments, fits various ACD models and tests them. 
 LazyData: yes
 NeedsCompilation: yes
 License: GPL (>= 2)
-Packaged: 2015-12-02 15:23:59 UTC; Markus
+Packaged: 2016-07-15 14:25:03 UTC; Markus
 Repository: CRAN
-Date/Publication: 2015-12-03 13:32:55
+Date/Publication: 2016-07-16 12:19:03

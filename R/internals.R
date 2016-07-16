@@ -1,3 +1,6 @@
+ACDmGlobalEnv <- new.env()
+assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
+
 .getDistCode<- function(dist){
   if(dist == "exponential"){
     .getDistCode <- 1
@@ -33,7 +36,7 @@
 }
 
 
-.checkOrderAndPara <- function(order, para, distCode, model){
+.checkOrderAndPara <- function(order, para, distCode, model, Nexovar = 0){
   #checks the order:
   if(model %in% c("ACD", "LACD1", "LACD2","ABACD")){
     if(length(order) != 2) stop("The order is not entered in the correct format, check the description")
@@ -81,13 +84,16 @@
     stop("Wrong distCode!")
   } 
   
-  if(length(para) != (Nmodelpara + Ndistpara)){
-    errMsg <- paste("Wrong number of given parameters. The", model, "model should have", Nmodelpara, "and the distribution", Ndistpara, "parameters.")
+  if(length(para) != (Nmodelpara + Ndistpara + Nexovar)){
+    errMsg <- paste("Wrong number of given parameters. The", model, 
+                    "model should have", Nmodelpara + Nexovar, 
+                    "parameters , of wich", Nexovar, "are for the exogenous variables",
+                    "and the distribution", Ndistpara, "parameters.")
     stop(errMsg)
   }   
 }
 
-.setStartPara <- function(model, distCode, mean, order){
+.setStartPara <- function(model, distCode, mean, order, Nexovar = NULL){
     
   if(distCode == 1){
     distStartPara <- NULL
@@ -129,6 +135,9 @@
     startPara <- c(0, c(0.03, rep(0,order[3])), rep(0,order[1] - 1), rep(.8/order[2],order[2]))
   }
   
+  if(length(Nexovar) != 0) startPara <- c(startPara, rep(0, Nexovar))
+    
+  
   return(list(startPara = c(startPara, distStartPara), modelStartPara = startPara, distStartPara = distStartPara))
 }
 
@@ -150,11 +159,36 @@
     startMPara <- startPara[1:(1 + order[1] + order[2] + order[3])]
   }
   
+  if(distCode == 1){
+    Ndistpara <- 0
+  } else if(distCode == 2){
+    Ndistpara <- 1
+  } else if(distCode == 3){
+    Ndistpara <- 2
+  } else if(distCode == 4){
+    Ndistpara <- 2
+  } else if(distCode == 5){
+    Ndistpara <- 3
+  } else if(distCode == 6){
+    Ndistpara <- 2
+  } else if(distCode == 7){
+    Ndistpara <- 4
+  } else if(distCode == 8){
+    Ndistpara <- 5
+  } else if(distCode == 9){
+    Ndistpara <- 3
+  } else if(distCode == 10){
+    Ndistpara <- 1
+  } else{
+    stop("Wrong distCode!")
+  } 
+  
+  startMPara <- startPara[(length(startMPara) + 1):(length(startPara) - Ndistpara)]
   
   if(distCode == 1){
     distStartPara <- NULL
   } else{
-    distStartPara <- startPara[(length(startMPara) + 1):length(startPara)]
+    distStartPara <- startPara[(length(startPara) - Ndistpara + 1):length(startPara)]
   }
   
   return(list(startPara = startPara, modelStartPara = startMPara, distStartPara = distStartPara))
@@ -326,12 +360,37 @@
 }
 
 
+.plotTracePath <- function(traceMatrix){
+  
+  value <- iteration <- NULL
+  
+  numcol <- dim(traceMatrix)[2]
+  numrow <- dim(traceMatrix)[1]
+  
+  df <- data.frame(para = rep(dimnames(traceMatrix)[[2]], numrow),
+                   iteration = rep(1:numrow, each = numcol),
+                   value = as.vector(t(traceMatrix)))
+  df$para <- factor(df$para,
+                         levels = dimnames(traceMatrix)[[2]])
+  
+  
+  if(min(df[df$para == "LL",]$value, na.rm = T) < -1e+12)  df[df$para == "LL" & !is.nan(df$value) & df$value < -1e+12,]$value = NaN
+                   
+  g <- ggplot2::ggplot(df, aes(y = value, x = iteration)) + geom_line() + facet_grid(para ~ ., scales = "free_y") + ggtitle("Search path for the MLE optimization")
+  print(g)
+}
+
 .getCoef <- function(para, model = c("ACD","LACD1","LACD2","AMACD","SNIACD", "LSNIACD"), dist = c("exponential","weibull","burr"), 
                     hessian, order, bootError = NULL, bootCorr = NULL, bootMean = NULL, robustCorr = NULL, 
-                    robustSE = NULL, fixedParam = NULL, fixedParamPos = NULL){
+                    robustSE = NULL, fixedParam = NULL, fixedParamPos = NULL, ExoVarNames = NULL){
   
   #the standard error of the parameters, estimated from the numerical hessian of the log likelihood function:
-  se <- sqrt(diag(solve(hessian)))
+  se <- matrix(nrow = nrow(hessian), ncol = ncol(hessian))
+  tryCatch(se <- sqrt(diag(solve(hessian))),
+           error = function(e) {
+             e
+             warning("The hessian could not be inverted, calculating the standard errors failed.")
+           })
   
   #combines the para and fixedParam into the full para vector if there are fixed parameters:
   if(length(fixedParamPos) != 0){    
@@ -476,70 +535,86 @@
     distPara <- para[NconDurPara+1]
     paraNames <- c(paraNames, "gamma")
     names(distPara) <-  paraNames[NconDurPara+1]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)]-1)/se[length(para)]))))
+    pval <- c(pval, 2*(1 - stats::pnorm(abs((para[length(pval) + 1] - 1) / se[length(para)]))))
     comment <- c(comment, "The p-value for the distribution parameter gamma is from the 2-tailed test H0: gamma = 1.")
   } else if(dist == "burr") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "kappa", "sigma2")
-    names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, (1-stats::pnorm((para[length(para)])/se[length(para)])))
+    names(distPara) <-  paraNames[(NconDurPara + 1):length(para)]
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1] - 1) / se[length(pval) + 1]))))
+    pval <- c(pval, (1-stats::pnorm((para[length(pval) + 1])/se[length(pval) + 1])))
     comment <- c(comment, "The p-value for the distribution parameter kappa is from the 2-tailed test H0: kappa = 1, and for sigma2 it is from the one sided test H0: sigma2 = 0 (or rather approching zero). If the two H0s are true, the Burr distribution reduces to the exponential distribution")
   } else if(dist == "gengamma") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "kappa", "gamma")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)]-1)/se[length(para)]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
     comment <- c(comment, "For the distribution parameters the null hypothesis is such that the parameter = 1 (2-sided). If the null is true, the generelized gamma distribution reduces to the exponential distribution")
   } else if(dist == "genf") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "kappa", "eta", "gamma")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-2]-1)/se[length(para)-2]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)]-1)/se[length(para)]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
     comment <- c(comment, "The p-value for the distribution parameters are from the 2-tailed tests H0: distributionParameter = 1")
   } else if(dist == "qweibull") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "a", "q")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)]-1)/se[length(para)]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1])/se[length(pval) + 1]))))
     comment <- c(comment, "The p-value for the distribution parameters are from the 2-tailed tests H0: distributionParameter = 1")
   } else if(dist == "mixqwe") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "p","a", "q", "lambda")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-3]-.5)/se[length(para)-3]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-2]-1)/se[length(para)-2]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-0]-1)/se[length(para)-0]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-.5)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
     comment <- c(comment, "The p-value for p is from the 2-tailed tests H0: p = .5, the rest of the distribution parameters are from H0: para = 1")
   } else if(dist == "mixqww") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "p","a", "q", "theta", "gamma")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-4]-.5)/se[length(para)-4]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-3]-1)/se[length(para)-3]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-2]-1)/se[length(para)-2]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-1)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-0]-1)/se[length(para)-0]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-.5)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
     comment <- c(comment, "The p-value for p is from the 2-tailed tests H0: p = .5, the rest of the distribution parameters are from H0: para = 1")
   } else if(dist == "mixinvgauss") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "theta","lambda", "gamma")
     names(distPara) <-  paraNames[(NconDurPara+1):length(para)]
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-2]-0)/se[length(para)-2]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-1]-0)/se[length(para)-1]))))
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-0]-0)/se[length(para)-0]))))
-    comment <- c(comment, "The p-values for the distribution parameters are from the 2-tailed tests H0: para = 0")
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-0)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-0)/se[length(pval) + 1]))))
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-0)/se[length(pval) + 1]))))
+    comment <- c(comment, "The p-value(s) for the distribution parameter(s) are from the 2-tailed test(s) H0: para = 0")
   } else if(dist == "birnbaum-saunders") {
     distPara <- para[(NconDurPara+1):length(para)]
     paraNames <- c(paraNames, "kappa")
-    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(para)-0]-1)/se[length(para)-0]))))
-    comment <- c(comment, "The p-values for the distribution parameters are from the 2-tailed tests H0: kappa = 1")
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]-1)/se[length(pval) + 1]))))
+    comment <- c(comment, "The p-value for the distribution parameter is from the 2-tailed test H0: kappa = 1")
   }
+  
+  paraNames <- c(paraNames, ExoVarNames)
+  
+  
+  if(length(pval) < length(para))  
+    comment <- c(comment, "The p-value(s) for the exogenous parameter(s) are from the 2-tailed test(s) H0: parameter = 0")
+  while(length(pval) < length(para)){
+    pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]) / se[length(pval) + 1]))))
+  }
+  
+  if(length(ExoVarNames) != 0){
+    conDurParanames <- names(conDurPara)
+    conDurPara <- c(conDurPara, para[(length(para) - length(ExoVarNames) + 1):length(para)])
+    names(conDurPara) <- c(conDurParanames, ExoVarNames)
+  }
+  
   
   if(length(fixedParamPos) != 0){
     paraNames <- ifelse(fixedParamPos, paste(paraNames, "(fixed)", sep = " "), paraNames)

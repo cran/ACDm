@@ -39,6 +39,7 @@ sim_ACD <- function(N = 1000,
     param <- c(distPara, startPara)
   }
   
+  #simulates the error terms:
   if(length(errors) == 0){
     if(dist == "exponential") e <- stats::rexp(N + Nburn)
     else if(dist == "weibull"){
@@ -65,7 +66,9 @@ sim_ACD <- function(N = 1000,
     }
   } 
     
+  
   maxpq = max(order)
+  #if the start value vector is smaller than the order, the start values are repeted:
   if(maxpq > min(length(startX), length(startMu))){
     startX <- rep(startX, length.out = maxpq)
     startMu <- rep(startMu, length.out = maxpq)
@@ -107,7 +110,6 @@ sim_ACD <- function(N = 1000,
                 qub,
                 splineNewDay, PACKAGE = "ACDm")   
     
-    #time <- strptime("2014-01-06 00:00:00", "%Y-%m-%d %H:%M:%S") + ((temp[[1]] %/% 432000) * 604800 + (temp[[1]] %% 432000)) * 86400 
     
     if(roundToSec){
       df <- data.frame(time = strptime("2014-01-06 00:00:00", "%Y-%m-%d %H:%M:%S") + ((temp[[1]] %/% 5) * 7 + (temp[[1]] %% 5)) * 60 * 60 * 24 + ceiling(temp[[2]]))

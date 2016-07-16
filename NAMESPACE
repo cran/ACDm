@@ -9,6 +9,7 @@ importFrom(graphics, par)
 S3method(print, acdFit)
 S3method(coef, acdFit)
 S3method(residuals, acdFit)
+S3method(predict, acdFit)
 
 useDynLib(ACDm)
 
@@ -35,6 +36,7 @@ export(acdFit,
 	  plotDescTrans,
 	  plotHazard,
 	  plotHistAcd,
+	  plotLL,
 	  plotRollMeanAcd,
 	  plotScatterAcd,
 	  pmixinvgauss,
