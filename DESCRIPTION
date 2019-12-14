@@ -10,6 +10,7 @@ Maintainer: Markus Belfrage <markus.belfrage@gmail.com>
 Description: Package for Autoregressive Conditional Duration (ACD, Engle and Russell, 1998) models. Creates trade, price or volume durations from transactions (tic) data, performs diurnal adjustments, fits various ACD models and tests them. 
 LazyData: yes
 NeedsCompilation: yes
+BugReport : https://github.com/cran/ACDm (github repository)
 License: GPL (>= 2)
 Packaged: 2016-07-15 14:25:03 UTC; Markus
 Repository: CRAN
