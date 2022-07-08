@@ -37,12 +37,12 @@ if \code{TRUE} instead or returning the adjusted durations a list of spline obje
 }
 }
 \value{
-\item{if \code{returnSplineFnc = FALSE} (default)}{
-the input data.frame 'dur' with an added column of the diurnally adjusted durations called 'adjDur'.
-}
-\item{if \code{returnSplineFnc = TRUE}}{
-a list of spline objects containing the coefficents of the spline function.
-}
+  If \code{returnSplineFnc} is \code{FALSE} (default): the input
+  data.frame \code{dur} with an added column of the diurnally adjusted
+  durations called 'adjDur'.
+
+  Otherwise, a list of spline objects containing the coefficents of the
+  spline function. 
 }
 \author{
 Markus Belfrage

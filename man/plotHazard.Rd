@@ -62,5 +62,5 @@ plotHazard(fitModelWei)
 
 }
 
-\keyword{hazard, residuals}
+% \keyword{hazard, residuals}
 

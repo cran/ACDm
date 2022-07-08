@@ -1,4 +1,4 @@
-43b14569a25a4325723ff1fd33cf976d *DESCRIPTION
+5dd8c45486d9c687cf46b35b7642db21 *DESCRIPTION
 ae44bd3874f4cb1e2cf8d3b481be154a *NAMESPACE
 2ffe525d816ec1778756ded4ca6b9061 *R/acdFit.R
 679dee03cd5aff5b78fc237c53a27891 *R/acdFitClassMethods.R
@@ -21,10 +21,10 @@ d3192e2ad3d4b4c2520044a1ae4925e5 *R/plotRollMeanAcd.R
 76f1f4650a92f0e591e52b66c96e9e7e *R/testRmACD.R
 7a9a5617d03dc1fcfab148b3cb20f66a *R/testSTACD.R
 cb1c3bda84b84f6b3a6fb78100054e43 *R/testTVACD.R
-ea8d980e8d9fa92077efa9c0d9b15738 *data/adjDurData.RData
-872560b8454198f3cf488130a2eb78db *data/defaultSplineObj.RData
-850657c2058f03bf3baf926f735d9069 *data/durData.RData
-84af28c64753857ae1a01d186e8ae0d2 *data/transData.RData
+f1af3464c56eff895afb55b263004d12 *data/adjDurData.RData
+f10197b5ce4536036c70dfc8dd95e44e *data/defaultSplineObj.RData
+21fef47995fcaded9df4ccbba54919f6 *data/durData.RData
+276dffce7b02e62137aa6b172fd1d90b *data/transData.RData
 912f88ee7d9c22edfab7433ff36ffbe3 *inst/NEWS.Rd
 3bfca7c285419cea65b7605566701984 *inst/doc/tutorial.pdf
 a521eaa9e39aa66be2b9b5773d341ed4 *man/ACDm-package.Rd
@@ -36,12 +36,12 @@ d6ec29e50a21ef6ab1eec504d8cec794 *man/acdFit.Rd
 24cdec62311aff2ba1a73bb4a091b47a *man/computeDurations.Rd
 9ca5ca6e6da4effcf36977e69aa49f1c *man/data.Rd
 e5bdd1c226f394daf66953833e29be72 *man/dgenf.Rd
-693408b7d6792d7a94d7be1ccbd5af5c *man/diurnalAdj.Rd
+b67532e46cf96685aa4e8a2b3d44f077 *man/diurnalAdj.Rd
 f0a6a15c6a714b99ebd17cedb5f65906 *man/mixinvgauss.Rd
 90c6c4a1398df09e8fdaa8b6908abbfb *man/mixqwe.Rd
 7c2402c827f835042b7530e6a45fce9f *man/mixqww.Rd
 172de07d87da0d252f3dffe96ece5d3f *man/plotDescTrans.Rd
-1c7e0ea926aa4210aaf9aba006decb58 *man/plotHazard.Rd
+617d945a8734730dda56d0b871b06e06 *man/plotHazard.Rd
 b96c3b541d9c96fff25990536d0c089c *man/plotHistAcd.Rd
 a69c0b812bfc59bce82d5a5cae198ecc *man/plotLL.Rd
 7843f7c830f9b8a13129d3905fff8114 *man/plotRollMeanAcd.Rd
