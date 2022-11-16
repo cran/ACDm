@@ -130,7 +130,7 @@ double getLL_dist(double *x,
 			}
 			break;
 		}
-		case 10: //Birnbaum–Saunders
+		case 10: //Birnbaum Saunders
 		{
 			double kappa = *distPara;
 			double const1 = 0;
@@ -254,7 +254,7 @@ double getLL_dist(double *x,
 			break;
 
 		}
-		case 10: //Birnbaum–Saunders
+		case 10: //Birnbaum Saunders
 		{
 			double kappa = *distPara;
 			double const1 = 0;

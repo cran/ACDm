@@ -1,6 +1,12 @@
 \name{NEWS}
 \title{News for Package 'ACDm'}
 
+\section{Changes in ACDm version 1.0.4.2 (2022-11-14)}{
+  \itemize{
+    \item Minor fix to make comments in C code valid UTF-8.
+  }
+}
+
 \section{Changes in ACDm version 1.0.4 (2016-07-15)}{
 
     \itemize{

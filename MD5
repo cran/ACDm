@@ -1,4 +1,4 @@
-5dd8c45486d9c687cf46b35b7642db21 *DESCRIPTION
+77217a2c56e8cca409ce36a39bc50834 *DESCRIPTION
 ae44bd3874f4cb1e2cf8d3b481be154a *NAMESPACE
 2ffe525d816ec1778756ded4ca6b9061 *R/acdFit.R
 679dee03cd5aff5b78fc237c53a27891 *R/acdFitClassMethods.R
@@ -25,7 +25,7 @@ f1af3464c56eff895afb55b263004d12 *data/adjDurData.RData
 f10197b5ce4536036c70dfc8dd95e44e *data/defaultSplineObj.RData
 21fef47995fcaded9df4ccbba54919f6 *data/durData.RData
 276dffce7b02e62137aa6b172fd1d90b *data/transData.RData
-912f88ee7d9c22edfab7433ff36ffbe3 *inst/NEWS.Rd
+dcb7cfeb030f2f45839d0edd83587c13 *inst/NEWS.Rd
 3bfca7c285419cea65b7605566701984 *inst/doc/tutorial.pdf
 a521eaa9e39aa66be2b9b5773d341ed4 *man/ACDm-package.Rd
 a227071db46e223ecc227608a65d09ee *man/BurrDist.Rd
@@ -56,7 +56,7 @@ c85121e45452a28c411b4d3c6f640ae0 *man/testSTACD.Rd
 339d891b887c76fb9c93d24aee3bc828 *man/testTVACD.Rd
 2fa4c7011c2bc0f7449ae151d5cc44ae *src/Makevars
 67f030811171501f21c72dd6365e137b *src/computeDurations.c
-59491b1b907f3006303d1bad4998e88a *src/getLL.c
+543c8a22c291f9e253ed68a070350b11 *src/getLL.c
 8cf9469df400ea3e378b1c2c24e33077 *src/getScore.c
 32e7d1ef00c7904ac900d43afbc4bc2d *src/getdudtheta.c
 727129e0cfa73077be08db292daf0924 *src/header.h
