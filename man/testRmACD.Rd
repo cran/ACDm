@@ -15,7 +15,7 @@ testRmACD(fitModel, pStar = 2, robust = TRUE)
 a fitted ACD model, i.e. an object of class "acdFit".
 }
   \item{pStar}{
-%the number of alpha parameters in the alternative hypothesis. See \eqn{p*} under 'Details'.
+the number of alpha parameters in the alternative hypothesis. See \eqn{p*} under 'Details'.
 }
   \item{robust}{
 if \code{TRUE} the LM statistic will be calculated using the "robust" version, making its asymptotic behavior unaffected by possible misspecification of the error term distribution (Meitz and Terasvirta, 2006).
@@ -24,17 +24,17 @@ if \code{TRUE} the LM statistic will be calculated using the "robust" version, m
 \details{
 
 For the model
-%\deqn{x_i = \mu_i \phi_i \epsilon_i,}
-%\deqn{\mu_i = \omega + \sum_{j=1}^{p} \alpha_j x_{i-j} + \sum_{j=1}^{q} \beta_j \mu_{i-j},}
-%\deqn{\phi_i = 1 + \sum_{j=1}^{p*} \frac{x_{i-j}}{\mu_{i-j}},}
+\deqn{x_i = \mu_i \phi_i \epsilon_i,}
+\deqn{\mu_i = \omega + \sum_{j=1}^{p} \alpha_j x_{i-j} + \sum_{j=1}^{q} \beta_j \mu_{i-j},}
+\deqn{\phi_i = 1 + \sum_{j=1}^{p*} \frac{x_{i-j}}{\mu_{i-j}},}
 
 the function tests the null hypothesis
 
-%\deqn{H_0: \phi_i = 1.}
+\deqn{H_0: \phi_i = 1.}
 
 }
 \value{
-a list of:
+a list containing:
 \item{chi2}{
 the value of the LM statistic.
 }

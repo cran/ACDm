@@ -1,4 +1,4 @@
-77217a2c56e8cca409ce36a39bc50834 *DESCRIPTION
+eb6acf3cfcf154c907a660f8e19c93ae *DESCRIPTION
 ae44bd3874f4cb1e2cf8d3b481be154a *NAMESPACE
 2ffe525d816ec1778756ded4ca6b9061 *R/acdFit.R
 679dee03cd5aff5b78fc237c53a27891 *R/acdFitClassMethods.R
@@ -51,7 +51,7 @@ ee6a9e54ec555cd18fa3a367a9eb8441 *man/qqplotAcd.Rd
 17366ff0318d74a40778149c337896b5 *man/resiDensityAcd.Rd
 fcad174689224ba03b352fd2fca0a6cd *man/sim_ACD.Rd
 7e96e8786235f0d833ec83f252cb8eec *man/standardizeResi.Rd
-9e32137b0a263c34f93b89a2e7bc4b7c *man/testRmACD.Rd
+04bddb1f6febe5fdb46a150408f2c483 *man/testRmACD.Rd
 c85121e45452a28c411b4d3c6f640ae0 *man/testSTACD.Rd
 339d891b887c76fb9c93d24aee3bc828 *man/testTVACD.Rd
 2fa4c7011c2bc0f7449ae151d5cc44ae *src/Makevars
