@@ -3,23 +3,27 @@
 \title{
 ACD (Autoregressive Conditional Duration) Model Fitting
 }
+
 \description{
-This function estimates various ACD models with various assumed error term distributions, using Maximum Likelihood Estimation.
+This function estimates various ACD models with various assumed error term distributions,
+using Maximum Likelihood Estimation.
 
-The currently available models (conditional mean specifications) are:
+The currently available models (conditional mean specifications) are: Standard ACD,
+Log-ACD (two alternative specifications), AMACD, ABACD, BACD, BCACD, AACD, EXACD,
+SNIACD, LSNIACD, TACD, and TAMACD.
 
-Standard ACD, Log-ACD (two alternative specifications), AMACD, ABACD, SNIACD and LSNIACD.
-
-The currently available distributions are:
-
-Exponential (also used for QML), Weibull, Burr, generalized Gamma, and generalized F.
+The currently available distributions are: Exponential (also used for QML), Weibull,
+Burr, generalized Gamma, generalized F, Q-Weibull, and Mixture inverse Gaussian.
 }
+
+
 \usage{
 acdFit(durations = NULL, model = "ACD", dist = "exponential", 
-    order = NULL, startPara = NULL,  dailyRestart = 0, optimFnc = "optim",
+    order = NULL, startPara = NULL,  dailyRestart = FALSE, optimFnc = "optim",
     method = "Nelder-Mead", output = TRUE, bootstrapErrors = FALSE, 
     forceErrExpec = TRUE, fixedParamPos = NULL, bp = NULL, 
-    exogenousVariables = NULL, control = list())
+    exogenousVariables = NULL, optimFncArgs = list(),
+    control = list())
 }
 
 \arguments{
@@ -47,7 +51,7 @@ if \code{TRUE} the conditional duration will start fresh every new trading day. 
 Specifies which optimization function to use for the estimation. \code{"optim"}, \code{"nlminb"}, \code{"solnp"}, and \code{"optimx"} are available.
 }
   \item{method}{
-Argument passed to the optimization function if \code{optimFnc = "optim"} or \code{optimFnc = "optimx"} were chosen. Specifies the optimization algorithm. See the help files for \link{optim}, \link{nlminb} or \link{solnp}.
+Argument passed to the optimization function if \code{optimFnc = "optim"} or \code{optimFnc = "optimx"} were chosen. Specifies the optimization algorithm. See the help files for \link{optim}, \link{nlminb} or \link[Rsolnp]{solnp}.
 }
   \item{output}{
 if \code{FALSE} the estimation results won't be printed.
@@ -59,25 +63,26 @@ if \code{TRUE} the standard errors will be computed by using bootstrap simulatio
 if \code{TRUE} the expectation of the error terms' distribution will be forced to be 1, otherwise the distribution parameter specifying the mean will be set to 1 to ensure identification.
 }
   \item{fixedParamPos}{
-a logical vector of \code{TRUE} and \code{FALSE}. Can only be used if the argument \code{startPara} were provided, and should be of the same length. Each element represents the respective start parameter and if \code{TRUE}, this parameter will be held fixed when estimating the other parameters.
+a logical vector of \code{TRUE} and \code{FALSE}. Can only be used if the argument \code{startPara} was provided, and should be of the same length. Each element represents the respective start parameter and if \code{TRUE}, this parameter will be held fixed when estimating the other parameters.
 }
   \item{bp}{
-used only for the SNIACD or LSNIACD model. A vector of break points.
+a numeric vector of breakpoints, used if the \code{model} is any of \code{"SNIACD", "LSNIACD", "TACD", "TAMACD"}. The default is a single breakpoint at 1. 
 }
   \item{exogenousVariables}{
-specifies the columns in the \code{durations} data.frame that should be used as exogenous variables when fitting the model. Must be a vector, either with the column positions or the names of the columns. It is highly recommended to standardize the exogenous variables before running the estimation.
+specifies the columns in the \code{durations} data.frame that should be used as exogenous variables when fitting the model. Must be a vector, either with the column positions or the names of the columns. It is highly recommended to standardize the exogenous variables before running the estimation. The models use the current exogenous variable and not their lagged values. 
+}
+  \item{optimFncArgs}{
+a list of values passed to the optimaization function. 
 }
   \item{control}{
-a list of control values,
-
+a list of control values:
 \describe{
    \item{maxit}{
 	maximum number of iterations performed by the numerical maximization algorithm.
    }
 
    \item{trace}{
-	an integer. If this is set to diffrent to 0, the values of the parameters each time the optimization function calls the log likelihood function. This search path of the MLE will then be plotted. Also passed on to the optimization function, see the help files for \link{optim}, \link{nlminb} or \link{solnp}.
-   }
+	An integer. If set to a non-zero value, the parameter values at each call of the log-likelihood function during optimization will be recorded, and the resulting search path of the maximum-likelihood estimate will be plotted. This argument is also passed on to the underlying optimizer; see the help files for \link{optim}, \link{nlminb} or \link[Rsolnp]{solnp} for details. }
 
    \item{B}{
 	number of bootstrap samples
@@ -121,8 +126,8 @@ The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j...,\n
 \cr
 
 \bold{ABACD(p, q) (Augmented Box-Cox ACD):} (Hautsch,  2012)
-\deqn{\mu_i^{\delta_1} = \omega + \sum_{j=1}^{p} \alpha_j \left( |\epsilon_{i-j}-\nu|+c_j|\epsilon_{i-j}-b| \right)^{\delta_2} + \sum_{j=1}^{q} \beta_j \mu_{i-j}^{\delta_1}}
-The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j..., c_j..., \beta_j..., \nu, \delta_1, \delta_2)}.
+\deqn{\mu_i^{\delta_1} = \omega + \sum_{j=1}^{p} \alpha_j \left( |\epsilon_{i-j}-\nu|+c|\epsilon_{i-j}-\nu| \right)^{\delta_2} + \sum_{j=1}^{q} \beta_j \mu_{i-j}^{\delta_1}}
+The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j..., \beta_j..., c, \nu, \delta_1, \delta_2)}.
 \cr
 
 \bold{BACD(p, q) (Box-Cox ACD):} (Hautsch,  2003)
@@ -130,10 +135,15 @@ The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j..., c
 The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j..., \beta_j...)}.
 \cr
 
+\bold{EXACD(p, q) (Exponential ACD):} (Dufour and Engle, 2000)
+\deqn{\ln\mu_i = \omega + \sum_{j=1}^{p} \left( \alpha_j \epsilon_{i-j} + \delta_j |\epsilon_{i-j} - 1| + \sum_{j=1}^{q} \beta_j \mu_{i-j} \right)}
+The element order of the \code{startPara} vector is \eqn{(\omega, \alpha_j..., \beta_j..., \delta_j...)}.
+\cr
+
 \bold{SNIACD(p,  q, M) (Spline News Impact ACD):} (Hautsch,  2012, with a slight difference)
-\deqn{\mu_i = \omega + \sum_{j=1}^{p} (\alpha_{j-1}+c_0) \epsilon_{i-j} + \sum_{j=1}^{p} \sum_{k=M}^{r} (\alpha_{j-1}+c_k)1_{(\epsilon_{i-j} \le  \bar{\epsilon_k})}+\sum_{j=1}^{q} \beta_j \mu_{i-j},}
+\deqn{\mu_i = \omega + \sum_{j=1}^{p} (\alpha_{j-1}+c_0) \epsilon_{i-j} + \sum_{j=1}^{p} \sum_{k=1}^{M} (\alpha_{j-1}+c_k)1_{(\epsilon_{i-j} \le  \bar{\epsilon_k})}+\sum_{j=1}^{q} \beta_j \mu_{i-j},}
 where \eqn{1_{()}} is an indicator function and \eqn{\alpha_0=0}. \cr
-The element order of the \code{startPara} vector is \eqn{(\omega, c_k..., \alpha_j..., \beta_j...)} (The number of \eqn{\alpha}-parameters are \eqn{p-1]}).
+The element order of the \code{startPara} vector is \eqn{(\omega, c_k..., \alpha_j..., \beta_j...)} (The number of \eqn{\alpha}-parameters are \eqn{p-1}).
 \cr
 
 \strong{The distribution of the error term \eqn{\epsilon_i} specifications according to the \code{dist} argument:}
@@ -146,7 +156,8 @@ The element order of the \code{startPara} vector is \eqn{(\omega, c_k..., \alpha
 
 \deqn{f(\epsilon)=\theta \gamma \epsilon^{\gamma-1}e^{-\theta \epsilon^{\gamma}} ,}
 where \eqn{\theta=[\Gamma(\gamma^{-1}+1)]^{\gamma}} if \code{forceErrExpec = TRUE}.
-\cr
+
+Note that this is a diffrent parameterization then the one in \code{stats::dweibull}. While the \code{shape} parameter in \code{stats::dweibull} is the same as \eqn{\gamma}, the \code{scale} parameter is equal to \eqn{\theta^{-\gamma}}.
 
 \bold{Burr distribution, \code{dist = "burr"}:}
 
@@ -236,7 +247,7 @@ a list of class \code{"acdFit"} with the following slots:
         number of log-likelihood evaluations needed for the maximization algorithm
     }
 \item{convergence}{
-        if the maximization algorithm converged, this value is zero. (see the help file \link{optim}, \link{nlminb} or \link{solnp})
+        if the maximization algorithm converged, this value is zero. (see the help file \link{optim}, \link{nlminb} or \link[Rsolnp]{solnp})
     }
 \item{estimationTime}{
         time required for estimation
@@ -252,6 +263,11 @@ a list of class \code{"acdFit"} with the following slots:
 \references{
 Bauwens, L., and P. Giot (2000) 
 \emph{The logarithmic ACD model: an application to the bid-ask quote process of three NYSE stocks.} Annales d'Economie et de Statistique, 60, 117-149.
+
+
+Dufour, A., & Engle, R. F. (2000)
+\emph{The ACD Model: Predictability of the Time Between Consecutive Trades} (Discussion Papers in Finance: 2000-05). ISMA Centre, University of Reading.
+    
 
 Engle R.F, Russell J.R. (1998)
 \emph{Autoregressive Conditional Duration: A New Model for Irregularly Spaced Transaction Data}, Econometrica, 66(5): 1127-1162.
@@ -274,8 +290,9 @@ Lunde, A. (1999):
 
 \examples{
 
+data(adjDurData)
 fitModel <- acdFit(durations = adjDurData, model = "ACD", 
-            dist = "exponential", order = c(1,1), dailyRestart = 1)
+            dist = "exponential", order = c(1,1), dailyRestart = TRUE)
 
 
 

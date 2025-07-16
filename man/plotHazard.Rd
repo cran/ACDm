@@ -56,11 +56,11 @@ plotHazard(fitModel, breaks = 20, implied = TRUE, xstop)
 \examples{  
 \dontrun{
 
+data(adjDurData)
 fitModelWei <- acdFit(adjDurData, dist = "wei")
 plotHazard(fitModelWei)
 }
 
 }
 
-% \keyword{hazard, residuals}
 

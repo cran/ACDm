@@ -37,9 +37,9 @@ SEXP sim_AMACD(SEXP N,
 	}
 	for(i = Nstart; i < INTEGER(N)[0] + INTEGER(Nburn)[0]; i++){
 		mu[i] = xpar[0]; //adds the constant
-		for(j = 1; j <= xorder[0]; j++) mu[i] += xpar[j]*xTemp[i-j]; //adds the lagged durations
+		for(j = 1; j <= xorder[0]; j++) mu[i] += xpar[j] * xTemp[i-j]; //adds the lagged durations
 		for(j = 1; j <= xorder[1]; j++) mu[i] += xpar[j + xorder[0]] * xe[i-j]; //adds the lagged residuals
-		for(j = 1; j <= xorder[2]; j++) mu[i] += xpar[j + xorder[1]] * mu[i-j]; //adds the lagged mus
+		for(j = 1; j <= xorder[2]; j++) mu[i] += xpar[j + xorder[0] + xorder[1]] * mu[i-j]; //adds the lagged mus
 		xTemp[i] = mu[i]*xe[i];		
 	}
 

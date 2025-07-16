@@ -23,5 +23,6 @@ a positive integer giving the length of the interval.
 }
 \examples{
 \dontrun{
+data(transData)
 plotDescTrans(transData, windowunit = "hours", window = 1)}
 }

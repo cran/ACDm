@@ -5,13 +5,12 @@
 ACD simulation
 }
 \description{
-Simulates a sample from a specified ACD \code{model} and error term distribution \code{dist}. The error terms can also be sampled from residuals. The possibility of including a diurnal seasonal component in the simulated sample is included.
+Simulates a sample from a specified ACD \code{model} and error term distribution \code{dist}. The error terms can also be sampled from residuals.
 }
 \usage{    
 sim_ACD(N = 1000, model = "ACD", dist = "exponential", param = NULL, order = NULL,
     Nburn = 50, startX = c(1), startMu = c(1), errors = NULL, sampleErrors = TRUE, 
-    roundToSec = FALSE, rm0 = FALSE, diurnalFactor = FALSE, splineObj = NULL,
-    open = NULL, close = NULL)
+    roundToSec = FALSE, rm0 = FALSE, bp = NULL)
 }
 
 \arguments{
@@ -19,7 +18,7 @@ sim_ACD(N = 1000, model = "ACD", dist = "exponential", param = NULL, order = NUL
 sample size
 }
   \item{model}{
-the class of conditional mean duration specification. One of \code{"ACD"}, \code{"LACD1"}, \code{"LACD2"}, \code{"AMACD"},\code{"ABACD"}, \code{"SNIACD"} or \code{"LSNIACD"}.
+the class of conditional mean duration specification. One of \code{"ACD"}, \code{"LACD1"}, \code{"LACD2"}, \code{"AMACD"},\code{"ABACD"}, \code{"SNIACD"} or \code{"LSNIACD"}. Can also be an object of class \code{acdFit}, as returned by \code{acdFit()}.
 }
   \item{dist}{
 the distribution of the error terms (only if \code{errors} are left out). Must be one of \code{"exponential"}, \code{"weibull"}, \code{"burr"}, \code{"gengamma"} or \code{"genf"}.
@@ -51,17 +50,8 @@ if \code{TRUE} the simulated sample will be discretized with 1 second(unit) prec
   \item{rm0}{
 if \code{TRUE} zero durations will be removed. Will the result in a smaller sample than \code{N}.
 }
-  \item{diurnalFactor}{
-if \code{TRUE} the simulated data will include a diurnal factor. The diurnal factor is from a fitted cubic spline given as argument to \code{splineObj}. If the argument \code{splineObj} is empty, a default fitted cubic spline from \code{transData} using aggregation over weekdays will be used.
-}
-  \item{splineObj}{
-a cubic spline return by \code{diurnalAdj()}. Currently only works with cubic splines fitted with weekday aggregation. Also see \code{diurnalFactor} above.
-}
-  \item{open}{
-only used if \code{diurnalFactor = TRUE} and a \code{splineObj} were provided. The time the exchange opens trading (as used in the fitted \code{splineObj}), for example \code{open = "10:00:00"}.
-}
-  \item{close}{
-only used if \code{diurnalFactor = TRUE} and a \code{splineObj} were provided. The time the exchange close trading (as used in the fitted \code{splineObj}), for example \code{close = "18:25:00"}.
+  \item{bp}{
+a vector of breakpoints used for \code{model} = "SNIACD", "LSNIACD", "TACD", "TAMACD". 
 }
 
 }

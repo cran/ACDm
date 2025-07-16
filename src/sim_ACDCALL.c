@@ -34,13 +34,13 @@ SEXP sim_ACDCALL(SEXP N,
 	
 
 	for (i = 0; i < Nstart; i++){
-		xTemp[i] = xstartX[i];
 		mu[i] = xstartMu[i];
+		xTemp[i] = xstartX[i];
 	}
 	for(i = Nstart; i < INTEGER(N)[0] + INTEGER(Nburn)[0]; i++){
 		mu[i] = xpar[0]; //adds the constant
-		for(j = 1; j <= xorder[0]; j++) mu[i] += xpar[j]*xTemp[i-j]; //adds the lagged durations
-		for(j = 1; j <= xorder[1]; j++) mu[i] += xpar[j+xorder[0]]*mu[i-j]; //adds the lagged mus
+		for(j = 1; j <= xorder[0]; j++) mu[i] += xpar[j] * xTemp[i-j]; //adds the lagged durations
+		for(j = 1; j <= xorder[1]; j++) mu[i] += xpar[j+xorder[0]] * mu[i-j]; //adds the lagged mus
 		xTemp[i] = mu[i]*xe[i];
 	}
 

@@ -23,6 +23,7 @@ an optional vector of limits for the y-axis
 }
 }
 \examples{
+data(adjDurData)
 fitModelExp <- acdFit(adjDurData, dist = "exp")
 qqplotAcd(fitModelExp)
 }

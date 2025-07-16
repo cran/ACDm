@@ -57,7 +57,7 @@ a data.frame with columns:
     }
     
     \item{durations}{
-        the computed duration.
+        the computed durations.
     }
 }
 \author{
@@ -66,7 +66,7 @@ Markus Belfrage
 \examples{
 \dontrun{
 #only the first 3 days of data:
+data(transData)
 durDataShort <- computeDurations(transData[1:56700, ]) 
-str(durDataShort)
 head(durDataShort)}
 }

@@ -25,11 +25,11 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       )
     if (nodes[length(nodes) - 1] > max(timeInMinutes))
       warning(
-        "no durations occured at the latest interval. Check if the 'node' argument is correctly specified"
+        "no durations occured in the latest interval. Check if the 'node' argument is correctly specified"
       )
     if (nodes[1] < min(timeInMinutes))
       warning(
-        "no durations occured at the first interval. Check if the 'node' argument is correctly specified"
+        "no durations occured in the first interval. Check if the 'node' argument is correctly specified"
       )
     
     for(i in 1:(length(nodes)-1)){  
@@ -43,7 +43,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       meandur <- plyr::ddply(data.frame(durations = dur$durations, timeInterval = timeInterval), plyr::.(timeInterval), plyr::summarize,              
                      mean = round(mean(durations, na.rm=TRUE), 2))
       
-      if(nrow(meandur) < 4) stop("Needs data in at least 3 nodes")
+      if(nrow(meandur) < 4) stop("Need data in at least 3 nodes")
       spline <- splnFnc(meandur$timeInterval, meandur$mean)      
       if(returnSplineFnc == TRUE) rtSpline <- spline
       adjDur <- dur$durations/stats::predict(spline, timeInMinutes)$y
@@ -78,7 +78,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       g <- g + geom_line()
       g <- g + ylab("Durations (seconds)")
       g <- g + xlab("time of the day")
-      g <- g + ggtitle("Diurnal pattern estimated by a cubic spline function")
+      g <- g + ggtitle("Diurnal pattern estimated by cubic spline")
       g <- g + facet_wrap(~day,ncol=5)
       g <- g + geom_hline(yintercept = 0, color="red")
       graphics::plot(g)
@@ -94,7 +94,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
         meandur <- plyr::ddply(dur[dur$date == date, -1], plyr::.(timeInterval), plyr::summarize,              
                        mean = mean(durations, na.rm=TRUE))
         meandur <- cbind(meandur,date=date)
-        if(nrow(meandur) < 4) stop("Needs data in at least 3 nodes (too few observations on ", date, ")")
+        if(nrow(meandur) < 4) stop("Need data in at least 3 nodes (too few observations on ", date, ")")
         spline <- splnFnc(meandur$timeInterval, meandur$mean)
         if(returnSplineFnc == TRUE) rtSpline <- c(rtSpline , list(spline))
         
@@ -102,20 +102,11 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
         adjDur <- ifelse(dur$date == date, dur$durations/stats::predict(spline, timeInMinutes)$y, adjDur)         
       }
       
-      
-      #fix for ggplot2 in case the data are not starting on a monday (adds rows with empty dates in start):
-      space = ""
-      i <- 1
-      while(i < dur$time[1]$wday){
-        df <- rbind(data.frame(spline.x=rep(0, 1000), spline.y=rep(0, 1000), date = (space <- paste(space, " "))), df)
-        i <- i +1 
-      }
-      
       g <- ggplot(df, aes(x = spline.x / 60, y = spline.y))
       g <- g + geom_line()
       g <- g + ylab("Durations (seconds)")
       g <- g + xlab("time of the day")
-      g <- g + ggtitle("Diurnal pattern estimated by a cubic spline function")
+      g <- g + ggtitle("Diurnal pattern estimated by cubic spline")
       g <- g + facet_wrap(~date,ncol=5)
       g <- g + geom_hline(yintercept = 0, color="red")
       graphics::plot(g)
@@ -172,14 +163,6 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
         adjDur[dateTemp == date] <- dur$durations[dateTemp == date]/smooth[paste(tempTime$hour * 3600 + tempTime$min * 60 + tempTime$sec), ]
       }
       
-      #fix for ggplot2 in case the data are not starting on a monday (adds rows with empty dates in start):
-      space = ""
-      i <- 1
-      while(i < dur$time[1]$wday){
-        df <- rbind(data.frame(x=rep(43200, 2), y=rep(0, 2), date = (space <- paste(space, ""))), df)
-        i <- i +1 
-      }
-      
       g <- ggplot(df, aes(x = x / 3600, y = y))
       g <- g + geom_line()
       g <- g + ylab("Durations (seconds)")
@@ -191,6 +174,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       
     } else stop("The aggregation argument is not supported")
   } else if(method == "FFF"){
+    
     timeInSec <- 3600*dur$time$hour + 60*dur$time$min + dur$time$sec
     range <- max(timeInSec) - min(timeInSec)
     tBar <- (timeInSec - min(timeInSec)) / range
@@ -207,15 +191,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       
       adjDur <- stats::predict(OLSest)
       adjDurDF <- data.frame(time = timeInSec, adjDur)
-      
-      #       fff <- function(x, coff = OLSest$coefficients, Q = Q){
-      #         out <- coff[1] + x * coff[2]
-      #         for(j in 1:Q){
-      #           out <- out + coff[j + 2] * cos(x*2*pi*j) + coff[Q + j + 2] * sin(x*2*pi*j)
-      #         }
-      #         fff <- out
-      #       }    
-      #plot(seq(0,1,.01),fff(seq(0,1,.01), coff = OLSest$coefficients, Q = Q), t="l")
+      adjDur <- dur$durations/adjDur
       
       g <- ggplot(adjDurDF, aes(x = time/3600 ,y = adjDur))
       g <- g + geom_line()
@@ -223,7 +199,8 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
       g <- g + xlab("time of the day")
       g <- g + ggtitle("Diurnal pattern estimated by \"Flexible Fourier Form\"")
       g <- g + geom_hline(yintercept = 0, color="red")
-      graphics::plot(g)      
+      graphics::plot(g)  
+      
     } else if(aggregation == "weekdays"){
       df <- data.frame()
       adjDur <- numeric(nrow(dur))
@@ -271,15 +248,7 @@ diurnalAdj <- function(dur, method = "cubicSpline", nodes = c(seq(600, 1105, 60)
         df <- rbind(df, data.frame(y = stats::predict(OLSest), time = timeInSec[dateTemp == date], date = date))
         adjDur[dateTemp == date] <- dur$durations[dateTemp == date]/stats::predict(OLSest)         
       }
-      
-      #fix for ggplot2 in case the data are not starting on a monday (adds rows with empty dates in start):
-      space = ""
-      i <- 1
-      while(i < dur$time[1]$wday){
-        df <- rbind(data.frame(x=rep(0, 1000), y=rep(0, 1000), date = (space <- paste(space, " "))), df)
-        i <- i +1 
-      }
-      
+
       g <- ggplot(df, aes(x=time/3600,y=y))
       g <- g + geom_line()
       g <- g + ylab("Durations (seconds)")

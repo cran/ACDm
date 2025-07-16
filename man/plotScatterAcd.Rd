@@ -40,7 +40,7 @@ a vector of the limits of the y-axis to possibly zoom in on a certain region.
 \code{alpha} parameter passed to ggplot2. For large data sets many data points will overlap. The alpha parameter can make the points transparent, making it easier to distinguish the density of different region. Takes the value between 1 (opaque) and 0 (completely transparent).
 }
   \item{smoothMethod}{
-value passed as \code{smooth} argument to ggplot2. See \link{stat_smooth}.
+value passed as \code{smooth} argument to ggplot2. See \link[ggplot2]{stat_smooth}.
 }
 }
 \author{
@@ -49,6 +49,7 @@ Markus Belfrage
 \examples{
 \dontrun{
 
+data(adjDurData)
 # The mean residuals are too small for small values of the estimated conditional 
 # mean, suggesting a need for a different conditional mean model specification:
 fitModel <- acdFit(adjDurData)

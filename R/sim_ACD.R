@@ -10,21 +10,52 @@ sim_ACD <- function(N = 1000,
                     sampleErrors = TRUE,
                     roundToSec = FALSE,
                     rm0 = FALSE,
-                    diurnalFactor = FALSE,
-                    splineObj = NULL,
-                    open = NULL,
-                    close = NULL){
+                    bp = NULL){
+  
+
+  if("acdFit" %in% class(model)){
+    param <- coef(model)
+    order <- model$order
+    dist <- model$distribution
+    bp <- model$breakPoints
+    model <- model$model  
+  }
   
   #provides the possibility of entering truncated and/or case mismatched arguments:
-  model <- match.arg(toupper(model), c("ACD", "LACD1", "LACD2", "AMACD", "ABACD"))
+  model <- match.arg(toupper(model), c("ACD", "LACD1", "LACD2", "EXACD", "AMACD", "ABACD", "AACD", "BCACD", "BACD", "SNIACD", "LSNIACD", "TACD", "TAMACD"))
   dist <- match.arg(tolower(dist), c("exponential", "weibull", "burr", "gengamma", "genf"))
+  
+  # checks bp (breakpoints):
+  if (model %in% c("SNIACD", "LSNIACD", "TACD", "TAMACD")) {
+    if (is.null(bp)) {
+      bp <- .setBP(1)
+    }
+    
+    if (!is.numeric(bp) || !is.vector(bp)) {
+      stop("'bp' must be a numeric vector")
+    }
+    
+    if (any(bp < 0)) {
+      stop("'bp' cannot contain negative values")
+    }
+    
+    if (is.unsorted(bp)) {
+      bp <- sort(bp)
+      warning("'bp' was not sorted; it has been reordered to ascending")
+    }
+    
+    J <- length(bp) + 1
+  } else {
+    J <- NULL
+  }
   
   distCode <- .getDistCode(dist)
   #checks param and order input:
   if(length(param) != 0){
     if(length(order) == 0) order <- .setOrder(model)
-    .checkOrderAndPara(order, param, distCode, model)
-    paraTemp <- .seperateStartPara(param, model, distCode, order)
+    else .checkOrder(order, model)
+    .checkPara(order, param, distCode, model)
+    paraTemp <- .seperateStartPara(param, model, distCode, order, 0, J)
     distPara <- paraTemp$distStartPara
     startPara <- paraTemp$startPara
   }else{
@@ -33,7 +64,7 @@ sim_ACD <- function(N = 1000,
     } else{
       order <- .setOrder(model)
     }
-    paraTemp <- .setStartPara(model, distCode, 1, order)
+    paraTemp <- .setStartPara(model, distCode, 1, order, 0, J)
     distPara <- paraTemp$distStartPara
     startPara <- paraTemp$startPara
     param <- c(distPara, startPara)
@@ -65,92 +96,149 @@ sim_ACD <- function(N = 1000,
       e <- errors
     }
   } 
-    
   
   maxpq = max(order)
-  #if the start value vector is smaller than the order, the start values are repeted:
+  #if the start value vector is smaller than the order, the start values are repeated:
   if(maxpq > min(length(startX), length(startMu))){
     startX <- rep(startX, length.out = maxpq)
     startMu <- rep(startMu, length.out = maxpq)
   } 
   
-  if(diurnalFactor){
-    if(length(splineObj) == 0){ 
-      splineObj <- ACDm::defaultSplineObj
-      open = "10:00:00"
-      close = "18:25:00"
-    }
+  
+  if(model == "ACD"){
+    temp <- .Call("sim_ACDCALL",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
     
-    knots <- c(splineObj[[1]]$knots, splineObj[[2]]$knots, splineObj[[3]]$knots, splineObj[[4]]$knots, splineObj[[5]]$knots)*60
-    konst <- c(splineObj[[1]][[2]][,1], splineObj[[2]][[2]][,1], splineObj[[3]][[2]][,1], splineObj[[4]][[2]][,1], splineObj[[5]][[2]][,1])
-    lin <- c(splineObj[[1]][[2]][,2], splineObj[[2]][[2]][,2], splineObj[[3]][[2]][,2], splineObj[[4]][[2]][,2], splineObj[[5]][[2]][,2])/60
-    sq <- c(splineObj[[1]][[2]][,3], splineObj[[2]][[2]][,3], splineObj[[3]][[2]][,3], splineObj[[4]][[2]][,3], splineObj[[5]][[2]][,3])/60^2
-    qub <- c(splineObj[[1]][[2]][,4], splineObj[[2]][[2]][,4], splineObj[[3]][[2]][,4], splineObj[[4]][[2]][,4], splineObj[[5]][[2]][,4])/60^3
-    splineNewDay <- cumsum(c(0, length(splineObj[[1]]$knots), length(splineObj[[2]]$knots), length(splineObj[[3]]$knots) , length(splineObj[[4]]$knots)))
+  } else if(model == "LACD1"){
+    temp <- .Call("sim_LACD1",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
     
-    opensek <- as.POSIXlt(strptime(open, "%H:%M:%S"))
-    opensek <- opensek$h * 3600 + opensek$min * 60 + opensek$sec
-    closesek <- as.POSIXlt(strptime(close, "%H:%M:%S"))
-    closesek <- closesek$h * 3600 + closesek$min * 60 + closesek$sec
-    
-    temp<-.Call("sim_ACDSpline",
-                as.integer(N),
-                param[1:(1+order[1]+order[2])],
-                order,
-                startX,
-                startMu,
-                e,
-                as.integer(Nburn),
-                opensek,
-                closesek,
-                knots,
-                konst,
-                lin,
-                sq,
-                qub,
-                splineNewDay, PACKAGE = "ACDm")   
-    
-    
-    if(roundToSec){
-      df <- data.frame(time = strptime("2014-01-06 00:00:00", "%Y-%m-%d %H:%M:%S") + ((temp[[1]] %/% 5) * 7 + (temp[[1]] %% 5)) * 60 * 60 * 24 + ceiling(temp[[2]]))
-      utils::capture.output(dur <- computeDurations(transactions = df, open = open, close = close, rm0dur = F, type = "transactions"))      
-    } else { #doesnt yet work 
-      df <- data.frame(time = strptime("2014-01-06 00:00:00", "%Y-%m-%d %H:%M:%S") + ((temp[[1]] %/% 5) * 7 + (temp[[1]] %% 5)) * 60 * 60 * 24 + temp[[2]])
-      utils::capture.output(dur <- computeDurations(transactions = df, open = open, close = close, rm0dur = F, type = "transactions"))
-    }    
-    return(df)
-  } else if(!diurnalFactor){
-    
-    cFunction <- switch(model,
-                        ACD = "sim_ACDCALL",
-                        LACD1 = "sim_LACD1",
-                        LACD2 = "sim_LACD2",
-                        AMACD = "sim_AMACD",
-                        ABACD = "sim_ABACD")
-    
-    if(!roundToSec){
-      return(.Call(cFunction,
-                   as.integer(N),
-                   startPara,
-                   order,
-                   startX,
-                   startMu,
-                   e,
-                   as.integer(Nburn), PACKAGE = "ACDm"))
-    } else{
-      durTemp <- ceiling(cumsum(.Call(cFunction,
-                                      as.integer(N),
-                                      startPara,
-                                      order,
-                                      startX,
-                                      startMu,
-                                      e,
-                                      as.integer(Nburn), PACKAGE = "ACDm")))
-      if(!rm0)  return(c(durTemp[1], durTemp[-1]-durTemp[-N]))
-      else{
-        durTemp <- c(durTemp[1], durTemp[-1]-durTemp[-N])
-        return(durTemp[durTemp != 0])
-      }
+  } else if(model == "LACD2"){
+    temp <- .Call("sim_LACD2",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "EXACD"){
+    temp <- .Call("sim_EXACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "AMACD"){
+    temp <- .Call("sim_AMACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "ABACD"){
+    temp <- .Call("sim_ABACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "AACD"){
+    temp <- .Call("sim_AACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "BCACD"){
+    temp <- .Call("sim_BCACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "BACD"){
+    temp <- .Call("sim_BACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), PACKAGE = "ACDm")
+  } else if(model == "SNIACD"){
+    temp <- .Call("sim_SNIACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), 
+                  bp, PACKAGE = "ACDm")
+  } else if(model == "LSNIACD"){
+    temp <- .Call("sim_LSNIACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), 
+                  bp, PACKAGE = "ACDm")
+  } else if(model == "TACD"){
+    temp <- .Call("sim_TACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), 
+                  bp, PACKAGE = "ACDm")
+  } else if(model == "TAMACD"){
+    temp <- .Call("sim_TAMACD",
+                  as.integer(N),
+                  startPara,
+                  order,
+                  startX,
+                  startMu,
+                  e,
+                  as.integer(Nburn), 
+                  bp, PACKAGE = "ACDm")
+  }
+  
+  
+  if(!roundToSec){ 
+    return(temp)
+  } else{
+    temp <- ceiling(cumsum(temp))
+    if(!rm0)  return(c(temp[1], temp[-1]-temp[-N]))
+    else{
+      temp <- c(temp[1], temp[-1]-temp[-N])
+      return(temp[temp != 0])
     }
   }
 }

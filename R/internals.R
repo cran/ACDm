@@ -1,5 +1,7 @@
 ACDmGlobalEnv <- new.env()
 assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
+assign("score", NULL, envir = ACDmGlobalEnv) 
+assign("scoreParam", NULL, envir = ACDmGlobalEnv)
 
 .getDistCode<- function(dist){
   if(dist == "exponential"){
@@ -36,30 +38,30 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
 }
 
 
-.checkOrderAndPara <- function(order, para, distCode, model, Nexovar = 0){
-  #checks the order:
-  if(model %in% c("ACD", "LACD1", "LACD2","ABACD")){
-    if(length(order) != 2) stop("The order is not entered in the correct format, check the description")
-  } else if(model %in% c("AMACD", "SNIACD", "LSNIACD")){
-    if(length(order) != 3) stop("The order is not entered in the correct format, check the description")  
-  } else stop("the model is wrongly entered or not supported!")
-  
-  if(any(order != round(order))) stop("The order must be integers")  
-  if(any(order < 0)) stop("The order can't have negative entries")   
-  
+.checkPara <- function(order, para, distCode, model, Nexovar = 0){
+
   #checks the number of parameters
   if(model %in% c("ACD", "LACD1", "LACD2")){
     Nmodelpara <- 1 +  order[1] + order[2]
+  } else if(model %in% c("EXACD")){
+    Nmodelpara <- 1 + 2 * order[1] + order[2]
+  } else if(model %in% c("AACD")){
+    Nmodelpara <- 5 + order[1] + order[2]
   } else if(model %in% c("ABACD")){
-    Nmodelpara <- 4 + 2*order[1] + order[2]
-  }else if(model %in% c("AMACD")){
-    Nmodelpara <- 1 +  order[1] + order[2] + order[3]
+    Nmodelpara <- 5 + order[1] + order[2]
+  } else if(model %in% c("TACD")){
+    Nmodelpara <- (1 + order[1] + order[2]) * (length(parent.frame()$bp) + 1)
+  } else if(model %in% c("TAMACD")){
+    Nmodelpara <- (1 + order[1] + order[2] + order[3]) * (length(parent.frame()$bp) + 1)
+  } else if(model %in% c("AMACD")){
+    Nmodelpara <- 1 + order[1] + order[2] + order[3]
   } else if(model %in% c("BACD")){
-    Nmodelpara <- 1 +  order[1] + order[2] + 2
+    Nmodelpara <- 1 + order[1] + order[2] + 2
+  } else if(model %in% c("BCACD")){
+    Nmodelpara <- 1 + order[1] + order[2] + 1
   } else if(model %in% c("SNIACD", "LSNIACD")){
-    Nmodelpara <- 1 +  order[1] + order[2] + order[3]
+    Nmodelpara <- 1 + (length(parent.frame()$bp) + 1) + min(0, order[1] - 1) + order[2]
   }
-    
   if(distCode == 1){
     Ndistpara <- 0
   } else if(distCode == 2){
@@ -84,16 +86,31 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     stop("Wrong distCode!")
   } 
   
-  if(length(para) != (Nmodelpara + Ndistpara + Nexovar)){
-    errMsg <- paste("Wrong number of given parameters. The", model, 
-                    "model should have", Nmodelpara + Nexovar, 
-                    "parameters , of wich", Nexovar, "are for the exogenous variables",
-                    "and the distribution", Ndistpara, "parameters.")
-    stop(errMsg)
-  }   
+  if (length(para) != (Nmodelpara + Ndistpara + Nexovar)) {
+    tbl <- data.frame(
+      Category = c("Model parameters:",
+                   "Exogenous-variable parameters:",
+                   "Distribution parameters:",
+                   "Total:"),
+      Count = c(Nmodelpara,
+                Nexovar,
+                Ndistpara,
+                Nmodelpara + Ndistpara + Nexovar)
+    )
+    tbl_txt <- paste(capture.output(print(tbl, row.names = FALSE)), collapse = "\n")
+    
+    errMsg <- paste(
+      "Wrong number of given parameters for the ", model, " model.\n",
+      "Expected parameter counts:\n",
+      tbl_txt,
+      sep = ""
+    )
+    stop(errMsg, call. = FALSE)
+  }
+  
 }
 
-.setStartPara <- function(model, distCode, mean, order, Nexovar = NULL){
+.setStartPara <- function(model, distCode, mean, order, Nexovar = NULL, J = 0){
     
   if(distCode == 1){
     distStartPara <- NULL
@@ -106,7 +123,7 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
   } else if(distCode == 5){      
     distStartPara <- c(0.4, 0.7, 2.5)  
   } else if(distCode == 6){      
-    distStartPara <- c(.8, 1.2)  
+    distStartPara <- c(.5, 0.8)  
   } else if(distCode == 7){      
     distStartPara <- c(.7, 1.3, 1.2, 1.2)  
   } else if(distCode == 8){      
@@ -123,16 +140,26 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     startPara <- c(0.03, rep(.03/order[1],order[1]), rep(.98/order[2],order[2]))
   } else if(model == "LACD2"){    
     startPara <- c(0, rep(.03/order[1],order[1]), rep(.98/order[2],order[2]))
+  } else if(model == "EXACD"){    
+    startPara <- c(0, rep(.05/order[1],order[1]), rep(0, order[1]), rep(.9/order[2],order[2]))
   } else if(model == "ABACD"){
-    startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(0, order[1]), rep(.8/order[2],order[2]), 0, 1, 1)
+    startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(.8/order[2],order[2]), .9, .01, 1, 1)
   } else if(model == "AMACD"){
-    startPara <- c(mean/10, rep(.15/(order[1]+order[2]), (order[1]+order[2])), rep(.8/order[3],order[3]))
+    startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(0, order[2]), rep(.8/order[3],order[3]))
+  } else if(model == "AACD"){
+    startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(.8/order[2],order[2]), .8, .1, 1.1, 1.1)
+  } else if(model == "TACD"){
+    startPara <- c(rep(mean/10, J), rep(.15 / order[1], order[1] * J), rep(.8 / order[2], order[2] * J))
+  } else if(model == "TAMACD"){
+    startPara <- c(rep(mean/10, J), rep(.10 / order[1], order[1] * J), rep(.05 / order[2], order[2] * J), rep(.8 / order[3], order[3] * J))
   } else if(model == "BACD"){
     startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(.8/order[2],order[2]), 1, 1)
+  } else if(model == "BCACD"){
+    startPara <- c(mean/20, rep(.10/order[1],order[1]), rep(.8/order[2],order[2]), 1)
   } else if(model %in% c("SNIACD")){
-    startPara <- c(mean/10, c(0.15, rep(.1,order[3])), rep(0,order[1] - 1), rep(.8/order[2],order[2]))
+    startPara <- c(mean/10, c(0.15, rep(0.02, J - 1)), rep(.1,order[1] - 1), rep(.8/order[2],order[2]))
   } else if(model %in% c("LSNIACD")){
-    startPara <- c(0, c(0.03, rep(0,order[3])), rep(0,order[1] - 1), rep(.8/order[2],order[2]))
+    startPara <- c(0.03,    c(0.15, rep(0.02, J - 1)), rep(.1,order[1] - 1), rep(.8/order[2],order[2]))
   }
   
   if(length(Nexovar) != 0) startPara <- c(startPara, rep(0, Nexovar))
@@ -141,22 +168,28 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
   return(list(startPara = c(startPara, distStartPara), modelStartPara = startPara, distStartPara = distStartPara))
 }
 
-.seperateStartPara <- function(startPara, model, distCode, order){  
+.seperateStartPara <- function(startPara, model, distCode, order, Nexovar = 0, J){  
    
-  if(model == "ACD"){
-    startMPara <- startPara[1:(1 + order[1] + order[2])]
-  } else if(model == "LACD1"){    
-    startMPara <- startPara[1:(1 + order[1] + order[2])]
-  } else if(model == "LACD2"){    
-    startMPara <- startPara[1:(1 + order[1] + order[2])]
-  } else if(model == "ABACD"){
-    startMPara <- startPara[1:(4 + 2 * order[1] + order[2])]
+  if(model %in% c("ACD", "LACD1", "LACD2")){
+    startMPara <- startPara[1:(1 + order[1] + order[2] + Nexovar)]
+  } else if(model == "EXACD"){
+    startMPara <- startPara[1:(1 + 2 * order[1] + order[2] + Nexovar)]
+  } else if(model %in% c("AACD")){
+    startMPara <- startPara[1:(5 + order[1] + order[2] + Nexovar)]
+  } else if(model %in% c("ABACD")){
+    startMPara <- startPara[1:(4 + 2 * order[1] + order[2] + Nexovar)]
   } else if(model == "AMACD"){
-    startMPara <- startPara[1:(1 + order[1] + order[2] + order[3])]
+    startMPara <- startPara[1:(1 + order[1] + order[2] + order[3] + Nexovar)]
+  } else if(model == "TACD"){
+    startMPara <- startPara[1:((1 + order[1] + order[2]) * J + Nexovar)]
+  } else if(model == "TAMACD"){
+    startMPara <- startPara[1:((1 + order[1] + order[2] + order[3]) * J + Nexovar)]
   } else if(model == "BACD"){
-    startMPara <- startPara[1:(1 + order[1] + order[2] + 2)]
+    startMPara <- startPara[1:(1 + order[1] + order[2] + 2 + Nexovar)]
+  } else if(model == "BCACD"){
+    startMPara <- startPara[1:(1 + order[1] + order[2] + 1 + Nexovar)]
   } else if(model %in% c("SNIACD", "LSNIACD")){
-    startMPara <- startPara[1:(1 + order[1] + order[2] + order[3])]
+    startMPara <- startPara[1:(1 + J + min(0, order[1] - 1) + order[2] + Nexovar)]
   }
   
   if(distCode == 1){
@@ -183,8 +216,6 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     stop("Wrong distCode!")
   } 
   
-  startMPara <- startPara[(length(startMPara) + 1):(length(startPara) - Ndistpara)]
-  
   if(distCode == 1){
     distStartPara <- NULL
   } else{
@@ -195,31 +226,37 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
 }
 
 .checkOrder <- function(order, model){
-  if(model %in% c("ACD", "LACD1", "LACD2","ABACD", "BACD")){
-    if(length(order) != 2) stop("The order is not entered in the correct format, check the description")
-  } else if(model %in% c("AMACD", "SNIACD", "LSNIACD")){
-    if(length(order) != 3) stop("The order is not entered in the correct format, check the description")  
-  } else stop("the model is wrongly entered or not supported!")
+  if(is.null(order)) stop("The 'order' is 'NULL'")  
+  if(!is.numeric(order)) stop("'order' is not numeric")  
+  if(!is.vector(order)) stop("'order' is not a vector")  
   
   if(any(order != round(order))) stop("The order must be integers")  
   if(any(order < 0)) stop("The order can't have negative entries")   
+  
+  if(model %in% c("AMACD", "TAMACD")){
+    NorderRec <- 3
+    if(length(order) != NorderRec){
+      msg <- paste0("The 'order' length must be ", NorderRec, " for ", model)
+      stop(msg)
+    } 
+  } else {
+    NorderRec <- 2
+    if(length(order) != NorderRec){
+      msg <- paste0("The 'order' length must be ", NorderRec, " for ", model)
+      stop(msg)
+    } 
+  }
 }
 
 .setOrder <- function(model){
-    if(model %in% c("ACD", "LACD1", "LACD2","ABACD", "BACD")){
-      return(c(1, 1))
-    } else if(model %in% c("AMACD")){
-      return(c(1, 1, 1))
-    }  else if(model %in% c("SNIACD", "LSNIACD")){
-      return(c(1, 1, 2))
-    }  
+  if(model %in% c("AMACD", "TAMACD")) return(c(1, 1, 1))
+  else return(c(1,1))
 }
 
 .getNewDay <- function(time){
-  daysDiff <- as.Date(time[-1])-as.Date(time[1:(length(time)-1)])
-  return(which(daysDiff != 0)+1)
+  daysDiff <- as.Date(time[-1])-as.Date(time[1:(length(time) - 1)])
+  return(which(daysDiff != 0) + 1)
 }
-
 
 #returns the full parameter vector from the shorter freePara and fixedParam
 .returnfixedPara <- function(freePara, fixedParam, fixedParamPos){
@@ -231,7 +268,7 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
   
   for(j in seq_along(fixedParamPos)){
     if(fixedParamPos[j]){
-      returnPara[j] <-fixedParam[fixedParamIndex]
+      returnPara[j] <- fixedParam[fixedParamIndex]
       names(returnPara)[j] <- names(fixedParam)[fixedParamIndex]
       fixedParamIndex <- fixedParamIndex + 1
     } else{
@@ -266,6 +303,8 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
 
 
 .returnFixedMeanPara <- function(distCode, distPara){
+#this function returns the scale parameter as a function of the other distribution parameters, 
+# when forcing the expectation to be 1.
   
   if(distCode == 1){ #Exponential    
     
@@ -283,7 +322,10 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     
     kappa <- distPara[1]
     sig2 <- distPara[2]
-    theta <- ((gamma(1+1/kappa)*gamma(1/sig2 - 1/kappa))/(sig2^(1+1/kappa)*gamma(1/sig2+1)))^(kappa)    
+
+    theta <- ((gamma(1 + 1 / kappa) * gamma(1 / sig2 - 1 / kappa)) / 
+                (sig2^(1 + 1 / kappa)*gamma(1 / sig2 + 1)))^(kappa)
+    
     names(theta) <- "theta"
     return(theta)    
     
@@ -373,23 +415,38 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
   df$para <- factor(df$para,
                          levels = dimnames(traceMatrix)[[2]])
   
+  qntl <- quantile(traceMatrix[, "LL"], na.rm = T, probs = .10)
+  df[(df$para == "LL" & !is.nan(df$value) & df$value <= qntl) | is.infinite(df$value),]$value <- NaN
   
-  if(min(df[df$para == "LL",]$value, na.rm = T) < -1e+12)  df[df$para == "LL" & !is.nan(df$value) & df$value < -1e+12,]$value = NaN
-                   
-  g <- ggplot2::ggplot(df, aes(y = value, x = iteration)) + geom_line() + facet_grid(para ~ ., scales = "free_y") + ggtitle("Search path for the MLE optimization")
+  g <- ggplot2::ggplot(df, aes(y = value, x = iteration)) + 
+    geom_line()  +
+    facet_grid(para ~ ., scales = "free_y") + 
+    ggtitle("Search path for the MLE optimization") 
+  
   print(g)
 }
 
-.getCoef <- function(para, model = c("ACD","LACD1","LACD2","AMACD","SNIACD", "LSNIACD"), dist = c("exponential","weibull","burr"), 
-                    hessian, order, bootError = NULL, bootCorr = NULL, bootMean = NULL, robustCorr = NULL, 
-                    robustSE = NULL, fixedParam = NULL, fixedParamPos = NULL, ExoVarNames = NULL){
+.getCoef <- function(para, 
+                     model, 
+                     dist, 
+                     hessian, 
+                     order, 
+                     bootError = NULL, 
+                     bootCorr = NULL,
+                     bootMean = NULL, 
+                     robustCorr = NULL, 
+                     robustSE = NULL, 
+                     fixedParam = NULL, 
+                     fixedParamPos = NULL, 
+                     ExoVarNames = NULL, 
+                     J = 0){
   
   #the standard error of the parameters, estimated from the numerical hessian of the log likelihood function:
   se <- matrix(nrow = nrow(hessian), ncol = ncol(hessian))
-  tryCatch(se <- sqrt(diag(solve(hessian))),
+  tryCatch(se <- sqrt(abs(diag(solve(hessian)))),
            error = function(e) {
              e
-             warning("The hessian could not be inverted, calculating the standard errors failed.")
+             warning("The hessian could not be inverted, calculation of the standard errors failed.")
            })
   
   #combines the para and fixedParam into the full para vector if there are fixed parameters:
@@ -398,21 +455,20 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     se <- .returnfixedSE(freeSE = se, fixedParamPos = fixedParamPos)
   }
   
-  
   comment <- NULL  
   if(model %in% c("ACD")){
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
     if(order[1] != 0){
-      for(j in 1:order[1]){
+      for(j in seq_len(order[1])){
         conDurPara <- c(conDurPara, para[j+1])
         paraNames <- c(paraNames, paste("alpha", j, sep = ""))
         NconDurPara <- NconDurPara + 1
       } 
     }
     if(order[2] != 0){
-      for(j in 1:order[2]){
+      for(j in seq_len(order[2])){
         conDurPara <- c(conDurPara, para[j+1+order[1]])
         paraNames <- c(paraNames, paste("beta", j, sep = ""))
         NconDurPara <- NconDurPara + 1
@@ -424,13 +480,34 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
-    for(j in 1:order[1]){
+    for(j in seq_len(order[1])){
       conDurPara <- c(conDurPara, para[j+1])
       paraNames <- c(paraNames, paste("alpha", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     } 
-    for(j in 1:order[2]){
+    for(j in seq_len(order[2])){
       conDurPara <- c(conDurPara, para[j+1+order[1]])
+      paraNames <- c(paraNames, paste("beta", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    }
+    names(conDurPara) <-  paraNames
+    pval = 2*(1-stats::pnorm(abs(para/se)))[1:NconDurPara]
+  } else if(model %in% c("EXACD")){
+    conDurPara <- para[1]
+    paraNames <- "omega"
+    NconDurPara <- 1
+    for(j in seq_len(order[1])){
+      conDurPara <- c(conDurPara, para[j+1])
+      paraNames <- c(paraNames, paste("alpha", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    } 
+    for(j in seq_len(order[1])){
+      conDurPara <- c(conDurPara, para[j + order[1] + 1])
+      paraNames <- c(paraNames, paste("delta", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    } 
+    for(j in seq_len(order[2])){
+      conDurPara <- c(conDurPara, para[j + 2 * order[1] + 1])
       paraNames <- c(paraNames, paste("beta", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     }
@@ -440,58 +517,114 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
-    for(j in 1:order[1]){
+    for(j in seq_len(order[1])){
       conDurPara <- c(conDurPara, para[j+1])
       paraNames <- c(paraNames, paste("alpha", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     } 
-    for(j in 1:order[2]){
+    for(j in seq_len(order[2])){
       conDurPara <- c(conDurPara, para[j+1+order[1]])
       paraNames <- c(paraNames, paste("nu", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     } 
-    for(j in 1:order[3]){
+    for(j in seq_len(order[3])){
       conDurPara <- c(conDurPara, para[j+1+order[1]+order[2]])
       paraNames <- c(paraNames, paste("beta", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     }
     names(conDurPara) <-  paraNames
     pval = 2*(1-(stats::pnorm(abs(para/se))))[1:NconDurPara]
-  } else if(model %in% c("ABACD")){
+  } else if(model %in% c("ABACD", "AACD")){
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
-    for(j in 1:order[1]){
+    for(j in seq_len(order[1])){
       conDurPara <- c(conDurPara, para[j+1])
       paraNames <- c(paraNames, paste("alpha", j, sep = ""))
       NconDurPara <- NconDurPara + 1
-    } 
-    for(j in 1:order[1]){
+    }   
+    for(j in seq_len(order[2])){
       conDurPara <- c(conDurPara, para[j+1+order[1]])
-      paraNames <- c(paraNames, paste("c", j, sep = ""))
-      NconDurPara <- NconDurPara + 1
-    } 
-    for(j in 1:order[2]){
-      conDurPara <- c(conDurPara, para[j+1+2*order[1]])
       paraNames <- c(paraNames, paste("beta", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     }
-    conDurPara <- c(conDurPara, para[2+2*order[1]+order[2]], para[3+2*order[1]+order[2]], para[4+2*order[1]+order[2]])
-    paraNames <- c(paraNames, "nu", "delta1", "delta2")
-    NconDurPara <- NconDurPara + 3
+    conDurPara <- c(conDurPara, para[2+order[1]+order[2] + 0:3])
+    paraNames <- c(paraNames, "c", "nu", "delta1", "delta2")
+    NconDurPara <- NconDurPara + 4
     
     names(conDurPara) <-  paraNames
     pval = 2*(1-(stats::pnorm(abs(para/se))))[1:NconDurPara]
+  } else if(model %in% c("TACD")){
+    
+    NconDurPara <- 0
+    conDurPara <- paraNames <- NULL
+    for(j in seq_len(J)){
+      conDurPara <- c(conDurPara, para[j])
+      paraNames <- c(paraNames, paste("omega_regime", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    } 
+    for(regime in seq_len(J)){
+      for(j in seq_len(order[1])){
+        NconDurPara <- NconDurPara + 1
+        conDurPara <- c(conDurPara, para[NconDurPara])
+        paraNames <- c(paraNames, paste("alpha", j, "_regime", regime, sep = ""))
+      }
+    }
+    for(regime in seq_len(J)){
+      for(j in seq_len(order[2])){
+        NconDurPara <- NconDurPara + 1
+        conDurPara <- c(conDurPara, para[NconDurPara])
+        paraNames <- c(paraNames, paste("beta", j, "_regime", regime, sep = ""))
+      }
+    }
+    
+    names(conDurPara) <-  paraNames
+    pval = 2 * (1 - (stats::pnorm(abs(para[1:NconDurPara] / se[1:NconDurPara]))))
+    
+  }else if(model %in% c("TAMACD")){
+    
+    NconDurPara <- 0
+    conDurPara <- paraNames <- NULL
+    for(j in seq_len(J)){
+      conDurPara <- c(conDurPara, para[j])
+      paraNames <- c(paraNames, paste("omega_regime", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    } 
+    for(j in seq_len(order[1])){
+      for(regime in seq_len(J)){
+        NconDurPara <- NconDurPara + 1
+        conDurPara <- c(conDurPara, para[NconDurPara])
+        paraNames <- c(paraNames, paste("alpha", j, "_regime", regime, sep = ""))
+      }
+    }
+    for(j in seq_len(order[2])){
+      for(regime in seq_len(J)){
+        NconDurPara <- NconDurPara + 1
+        conDurPara <- c(conDurPara, para[NconDurPara])
+        paraNames <- c(paraNames, paste("nu", j, "_regime", regime, sep = ""))
+      }
+    }
+    for(j in seq_len(order[3])){
+      for(regime in seq_len(J)){
+        NconDurPara <- NconDurPara + 1
+        conDurPara <- c(conDurPara, para[NconDurPara])
+        paraNames <- c(paraNames, paste("beta", j, "_regime", regime, sep = ""))
+      }
+    }
+    
+    names(conDurPara) <-  paraNames
+    pval = 2 * (1 - (stats::pnorm(abs(para[1:NconDurPara] / se[1:NconDurPara]))))
+    
   } else if(model %in% c("BACD")){
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
-    for(j in 1:order[1]){
+    for(j in seq_len(order[1])){
       conDurPara <- c(conDurPara, para[j+1])
       paraNames <- c(paraNames, paste("alpha", j, sep = ""))
       NconDurPara <- NconDurPara + 1
     } 
-    for(j in 1:order[2]){
+    for(j in seq_len(order[2])){
       conDurPara <- c(conDurPara, para[j+1+order[1]])
       paraNames <- c(paraNames, paste("beta", j, sep = ""))
       NconDurPara <- NconDurPara + 1
@@ -502,22 +635,41 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     
     names(conDurPara) <-  paraNames
     pval = 2*(1-(stats::pnorm(abs(para/se))))[1:NconDurPara]
+  } else if(model %in% c("BCACD")){
+    conDurPara <- para[1]
+    paraNames <- "omega"
+    NconDurPara <- 1
+    for(j in seq_len(order[1])){
+      conDurPara <- c(conDurPara, para[j+1])
+      paraNames <- c(paraNames, paste("alpha", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    } 
+    for(j in seq_len(order[2])){
+      conDurPara <- c(conDurPara, para[j+1+order[1]])
+      paraNames <- c(paraNames, paste("beta", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    }
+    conDurPara <- c(conDurPara, para[2+order[1]+order[2]])
+    paraNames <- c(paraNames,"delta1")
+    NconDurPara <- NconDurPara + 1
+    
+    names(conDurPara) <-  paraNames
+    pval = 2*(1-(stats::pnorm(abs(para/se))))[1:NconDurPara]
   } else if(model %in% c("SNIACD", "LSNIACD")){
     conDurPara <- para[1]
     paraNames <- "omega"
     NconDurPara <- 1
-    for(j in 1:(order[3] + 1)){
-      conDurPara <- c(conDurPara, para[j+1])
-      paraNames <- c(paraNames, paste("c", j-1, sep = ""))
+    for(j in seq_len(J)){
+      conDurPara <- c(conDurPara, para[j + 1])
+      paraNames <- c(paraNames, paste("c", j - 1, sep = ""))
       NconDurPara <- NconDurPara + 1
     } 
-    if(order[1] > 1)
-      for(j in 1:(order[1] - 1)){
-        conDurPara <- c(conDurPara, para[length(conDurPara) + 1])
-        paraNames <- c(paraNames, paste("alpha", j, sep = ""))
-        NconDurPara <- NconDurPara + 1
-      }
-    for(j in 1:order[2]){
+    for(j in seq_len(min(0, (order[1] - 1)))){
+      conDurPara <- c(conDurPara, para[length(conDurPara) + 1])
+      paraNames <- c(paraNames, paste("alpha", j, sep = ""))
+      NconDurPara <- NconDurPara + 1
+    }
+    for(j in seq_len(order[2])){
       conDurPara <- c(conDurPara, para[length(conDurPara) + 1])
       paraNames <- c(paraNames, paste("beta", j, sep = ""))
       NconDurPara <- NconDurPara + 1
@@ -527,6 +679,15 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     pval = 2*(1-(stats::pnorm(abs(para/se))))[1:NconDurPara]
   } else stop("model not supported")
   
+  
+  paraNames <- c(paraNames, ExoVarNames)
+  if(length(ExoVarNames) != 0){
+    NconDurPara <- NconDurPara + length(ExoVarNames)
+    conDurParanames <- names(conDurPara)
+    conDurPara <- c(conDurPara, para[(length(conDurPara) + 1):NconDurPara])
+    names(conDurPara) <- c(conDurParanames, ExoVarNames)
+  }
+
   if(dist == "exponential"){
     distPara <- NULL
     pval <- c(pval, NULL)
@@ -600,21 +761,11 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
     comment <- c(comment, "The p-value for the distribution parameter is from the 2-tailed test H0: kappa = 1")
   }
   
-  paraNames <- c(paraNames, ExoVarNames)
   
-  
-  if(length(pval) < length(para))  
-    comment <- c(comment, "The p-value(s) for the exogenous parameter(s) are from the 2-tailed test(s) H0: parameter = 0")
   while(length(pval) < length(para)){
     pval <- c(pval, 2*(1-stats::pnorm(abs((para[length(pval) + 1]) / se[length(pval) + 1]))))
   }
-  
-  if(length(ExoVarNames) != 0){
-    conDurParanames <- names(conDurPara)
-    conDurPara <- c(conDurPara, para[(length(para) - length(ExoVarNames) + 1):length(para)])
-    names(conDurPara) <- c(conDurParanames, ExoVarNames)
-  }
-  
+
   
   if(length(fixedParamPos) != 0){
     paraNames <- ifelse(fixedParamPos, paste(paraNames, "(fixed)", sep = " "), paraNames)
@@ -626,7 +777,7 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
                                    PV = round(pval, digits = 3),
                                    row.names = 1)
   
-  #if bootstrapp where aviable: names the rows and columns of the correlation matrix and adds the mean and standard errors:
+  #if bootstrap was aviable: names the rows and columns of the correlation matrix and adds the mean and standard errors:
   if(length(bootError) != 0){
     parameterInference <- cbind(parameterInference, BootMean = bootMean, BootSE = bootError)
     dimnames(bootCorr) <- list(paraNames, paraNames)
@@ -641,26 +792,3 @@ assign("ACDmOptimTrace", NULL, envir = ACDmGlobalEnv)
   return(list(MPar = conDurPara, DPar = distPara, Inference = parameterInference, comment = comment, paraNames = paraNames, bootCorr = bootCorr, robustCorr = robustCorr))
 }
 
-
-.getdmudtheta_ACD <- function(param, x, order, mean = mean(x), newDay = c(0)){
-  
-  if(length(newDay) == 1 & newDay[1] == 0){
-    NnewDays = 0;
-  }else{
-    NnewDays = length(newDay)
-  }
-  
-  temp<-.C("getdmudtheta_ACD",
-           as.double(x),
-           as.integer(length(x)),
-           as.double(param[1:(1+order[1]+order[2])]),
-           as.integer(order),
-           as.double(mean),
-           as.double(numeric(length(x))),
-           as.double(numeric(length(x))),
-           as.integer(newDay),
-           as.integer(NnewDays),
-           as.double(numeric(length(x) * (1+order[1]+order[2]))), PACKAGE = "ACDm")
-  
-  .getdmudtheta_ACD <- matrix(temp[[10]], nrow = length(x), ncol = (1+order[1]+order[2]))    
-}

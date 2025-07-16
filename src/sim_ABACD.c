@@ -49,8 +49,8 @@ SEXP sim_ABACD(SEXP N,
 	for(i = Nstart; i < INTEGER(N)[0] + INTEGER(Nburn)[0]; i++){
 		poweredMu[i] = xpar[0]; //adds the constant
 		for(j = 0; j < xorder[0]; j++) poweredMu[i] += a[j]*pow(fabs(xe[i+j-1] - v) + c[j]*(xe[i+j-1]-v), d[1]); //adds the p-part
-		for(j = 0; j < xorder[0]; j++) poweredMu[i] += b[j]*poweredMu[i-j-1]; //adds the q-part
-		xTemp[i] = pow(poweredMu[i], 1/d[0])*xe[i];
+		for(j = 0; j < xorder[1]; j++) poweredMu[i] += b[j]*poweredMu[i-j-1]; //adds the q-part
+		xTemp[i] = pow(poweredMu[i], 1/d[0]) * xe[i];
 	}
 
 	PROTECT(dur = NEW_NUMERIC(INTEGER(N)[0]));

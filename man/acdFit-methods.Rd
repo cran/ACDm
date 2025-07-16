@@ -17,7 +17,7 @@ Methods for class acdFit
 \method{print}{acdFit}(x, \dots)
 \method{predict}{acdFit}(object, N = 10, \dots)
 }
-%- maybe also 'usage' for other objects documented here.
+
 \arguments{
   \item{object}{
 the fitted ACD model of class 'acdFit' (as returned by the function \code{acdFit}).

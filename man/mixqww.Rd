@@ -8,7 +8,7 @@
 Discreet mix of the q-Weibull and the ordinary Weibull distributions
 }
 \description{
-Density (PDF), distribution function (CDF), and hazard function for a discreetly mixed distribution of the q-Weibull and the ordinary Weibull distributions.
+Density (PDF), distribution function (CDF), and hazard function for a discreetly mixed distribution of the Q-Weibull and the ordinary Weibull distributions.
 }
 \usage{
 dmixqww(x, pdist = .5, a = 1.2, qdist = 1.5, theta = .8, gamma = 1, b = 1,

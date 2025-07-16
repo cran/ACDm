@@ -26,7 +26,7 @@ void computeDurationsSubSec(int *y,
 		int *durType,
 		int *zeroDurHandeling,
 		double *priceChange,  //25
-		int *culmVol){
+		int *cumVol){
 
 	int i, j = 0, lastMonth = 0, lastDay = 0, lastYear = 0, tempNtrans = 1,  tempVol = 0;
 	double tempTurnover = 0, lastPrice = 0, secOfDay = 0, lastSecOfDay = 0, tempDur = 0;
@@ -267,7 +267,7 @@ void computeDurationsSubSec(int *y,
 					tempVol += *(vol+i);
 					tempNtrans++;
 
-					if(tempVol >= *culmVol && secOfDay != lastSecOfDay){ //Cumulated volume is large enough and duration is not zero
+					if(tempVol >= *cumVol && secOfDay != lastSecOfDay){ //Cumulated volume is large enough and duration is not zero
 						//adds a row to the new duration object:
 						*(yDur+j) = *(y + i);
 						*(MDur+j) = *(M + i);
@@ -312,7 +312,7 @@ void computeDurationsSubSec(int *y,
 					tempVol += *(vol+i);
 					tempNtrans++;
 
-					if(tempVol >= *culmVol){ //Cumulated volume is large enough
+					if(tempVol >= *cumVol){ //Cumulated volume is large enough
 						//adds a row to the new duration object:
 						*(yDur+j) = *(y + i);
 						*(MDur+j) = *(M + i);

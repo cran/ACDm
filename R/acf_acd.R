@@ -1,4 +1,6 @@
-acf_acd <- function(fitModel = NULL, conf_level = 0.95, max = 50, min = 1){
+acf_acd <- function(fitModel = NULL, conf_level = 0.95, max = 50, min = 1, 
+                    plotDur = TRUE, plotAdjDur = TRUE, plotResi = TRUE){
+  
   lag <- acf <- NULL
   
   if("acdFit" %in%  class(fitModel)){
@@ -16,17 +18,17 @@ acf_acd <- function(fitModel = NULL, conf_level = 0.95, max = 50, min = 1){
   } else stop("fitModel is not of the correct object type")
   
   df <- data.frame()
-  if(length(dur) != 0){
+  if(length(dur) != 0 && plotDur){
     temp_acf <- stats::acf(dur, plot = FALSE, lag.max = max)
     df <- rbind(df, data.frame(acf = temp_acf$acf[-(1:min)], lag = temp_acf$lag[-(1:min)], data = "durations"))
     conf <- stats::qnorm((1 - conf_level)/2)/sqrt(length(dur))
   }
-  if(length(adjDur) != 0){
+  if(length(adjDur) != 0 && plotAdjDur){
     temp_acf <- stats::acf(adjDur, plot = FALSE, lag.max = max)
     df <- rbind(df, data.frame(acf = temp_acf$acf[-(1:min)], lag = temp_acf$lag[-(1:min)], data = "adj. durations"))
     conf <- stats::qnorm((1 - conf_level)/2)/sqrt(length(adjDur))
   }
-  if(length(resi) != 0){
+  if(length(resi) != 0 && plotResi){
     temp_acf <- stats::acf(resi, plot = FALSE, lag.max = max)
     df <- rbind(df, data.frame(acf = temp_acf$acf[-(1:min)], lag = temp_acf$lag[-(1:min)], data = "residuals"))
     conf <- stats::qnorm((1 - conf_level)/2)/sqrt(length(resi))

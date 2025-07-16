@@ -1,146 +1,316 @@
-.getLLcall <- function(param, dur, exogenousVar = NULL, model, order, mean = mean(dur), distCode = 1,
-                       newDay = c(0), returnMu = TRUE, breakPoints = NULL, forceErrExpec = 1,
-                       fixedParam = NULL, fixedParamPos = NULL, trace = 0){  
+.getLLcall <- function(param, getLL.args = list()){  
+  
+  if(length(getLL.args$mean) == 0 || is.na(getLL.args$mean)) getLL.args$mean <- mean(getLL.args$dur, na.rm = TRUE)
   
   #combines the param and fixedParam into the full param vector if there are fixed parameters:
-  if(length(fixedParamPos) != 0)    
-    param <- .returnfixedPara(freePara = param, fixedParam = fixedParam, fixedParamPos = fixedParamPos)
+  if(length(getLL.args$fixedParamPos) != 0)    
+    param <- .returnfixedPara(freePara = param, fixedParam = getLL.args$fixedParam, fixedParamPos = getLL.args$fixedParamPos)
   
-  distPara <- .seperateStartPara(param, model, distCode, order)$distStartPara
-  
-  cFunction <- switch(model,
-                      ACD = "getLL_ACDcall",
-                      LACD1 = "getLL_LACD1call",
-                      LACD2 = "getLL_LACD2call",
-                      AMACD = "getLL_AMACDcall",
-                      ABACD = "getLL_ABACDcall",
-                      BACD = "getLL_BACDcall",
-                      SNIACD = "getLL_SNIACDcall",
-                      LSNIACD = "getLL_logSNIACDcall",
-                      stop("model not supported"))
-  
-  if(length(exogenousVar) == 0){
-    
-    if(returnMu){
-      if(model %in% c("SNIACD", "LSNIACD")){
-        temp <- .Call(cFunction,
-                      as.double(dur),
-                      as.double(param),                     
-                      as.integer(order),
-                      as.double(mean),
-                      as.integer(distCode),
-                      as.double(distPara),
-                      as.integer(newDay),
-                      as.double(breakPoints),
-                      as.integer(forceErrExpec), PACKAGE = "ACDm")
-      } else {
-        temp <- .Call(cFunction,
-                      as.double(dur),
-                      as.double(param),                     
-                      as.integer(order),
-                      as.double(mean),
-                      as.integer(distCode),
-                      as.double(distPara),
-                      as.integer(newDay),
-                      as.integer(forceErrExpec), PACKAGE = "ACDm")
-      }
-      
-      if(trace != 0) assign("ACDmOptimTrace", c(get("ACDmOptimTrace", envir = ACDmGlobalEnv), param, -temp[[3]]), envir = ACDmGlobalEnv)
-      .getLLcall <- list(LL = temp[[3]], mu = temp[[1]], resi = temp[[2]])
-      
-    } else{
-      if(model %in% c("SNIACD", "LSNIACD")){
-        LL <- -.Call(cFunction,
-                             as.double(dur),
-                             as.double(param),                     
-                             as.integer(order),
-                             as.double(mean),
-                             as.integer(distCode),
-                             as.double(distPara),
-                             as.integer(newDay),
-                             as.double(breakPoints),
-                             as.integer(forceErrExpec), PACKAGE = "ACDm")[[3]]
-      } else {
-        LL <- -.Call(cFunction,
-                             as.double(dur),
-                             as.double(param),                     
-                             as.integer(order),
-                             as.double(mean),
-                             as.integer(distCode),
-                             as.double(distPara),
-                             as.integer(newDay),
-                             as.integer(forceErrExpec), PACKAGE = "ACDm")[[3]]
-      }
-      
-      
-      if(trace != 0) assign("ACDmOptimTrace", c(get("ACDmOptimTrace", envir = ACDmGlobalEnv), param, -LL), envir = ACDmGlobalEnv)
-      .getLLcall <- LL
-      
+  distPara <- .seperateStartPara(param, getLL.args$model, getLL.args$distCode, getLL.args$order, J = getLL.args$J)$distStartPara
+
+  if(length(getLL.args$exogenousVar) == 0){
+    if(getLL.args$model == "ACD"){
+      temp <- .Call("getLL_ACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LACD1"){
+      temp <- .Call("getLL_LACD1call",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LACD2"){
+      temp <- .Call("getLL_LACD2call",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "EXACD"){
+      temp <- .Call("getLL_EXACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "AMACD"){
+      temp <- .Call("getLL_AMACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "AACD"){
+      temp <- .Call("getLL_AACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "ABACD"){
+      temp <- .Call("getLL_ABACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "BACD"){
+      temp <- .Call("getLL_BACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "BCACD"){
+      temp <- .Call("getLL_BCACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "SNIACD"){
+      temp <- .Call("getLL_SNIACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.double(getLL.args$breakPoints),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LSNIACD"){
+      temp <- .Call("getLL_logSNIACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.double(getLL.args$breakPoints),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "TACD"){
+      temp <- .Call("getLL_TACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$dur),
+                    as.integer(0),
+                    as.double(getLL.args$breakPoints),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "TAMACD"){
+      temp <- .Call("getLL_TAMACDcall",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$dur),
+                    as.integer(0),
+                    as.double(getLL.args$breakPoints),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
     }
+    
   } else { #if there are exogenous variables:
     
-    cFunction <- paste0(cFunction, "Ex")
-    
-    if(returnMu){
-      if(model %in% c("SNIACD", "LSNIACD")){
-        temp <- .Call(cFunction,
-                      as.double(dur),
-                      as.double(exogenousVar),
-                      as.double(param),                     
-                      as.integer(order),
-                      as.double(mean),
-                      as.integer(distCode),
-                      as.double(distPara),
-                      as.integer(newDay),
-                      as.double(breakPoints),
-                      as.integer(forceErrExpec), PACKAGE = "ACDm")
-      } else {
-        temp <- .Call(cFunction,
-                      as.double(dur),
-                      as.double(exogenousVar),
-                      as.double(param),                     
-                      as.integer(order),
-                      as.double(mean),
-                      as.integer(distCode),
-                      as.double(distPara),
-                      as.integer(newDay),
-                      as.integer(forceErrExpec), PACKAGE = "ACDm")
-      }
-      
-      if(trace != 0) assign("ACDmOptimTrace", c(get("ACDmOptimTrace", envir = ACDmGlobalEnv), param, temp[[3]]), envir = ACDmGlobalEnv)
-      .getLLcall <- list(LL = -temp[[3]], mu = temp[[1]], resi = temp[[2]])
-      
-    } else {
-      
-      if(model %in% c("SNIACD", "LSNIACD")){
-        LL <- -.Call(cFunction,
-                     as.double(dur),
-                     as.double(exogenousVar),
-                     as.double(param),                     
-                     as.integer(order),
-                     as.double(mean),
-                     as.integer(distCode),
-                     as.double(distPara),
-                     as.integer(newDay),
-                     as.double(breakPoints),
-                     as.integer(forceErrExpec), PACKAGE = "ACDm")[[3]]
-      } else {
-        LL <- -.Call(cFunction,
-                     as.double(dur),
-                     as.double(exogenousVar),
-                     as.double(param),                     
-                     as.integer(order),
-                     as.double(mean),
-                     as.integer(distCode),
-                     as.double(distPara),
-                     as.integer(newDay),
-                     as.integer(forceErrExpec), PACKAGE = "ACDm")[[3]]
-        
-      }
-      
-      if(trace != 0) assign("ACDmOptimTrace", c(get("ACDmOptimTrace", envir = ACDmGlobalEnv), param, -LL), envir = ACDmGlobalEnv)
-      .getLLcall <- LL
-      
+    if(getLL.args$model == "ACD"){
+      temp <- .Call("getLL_ACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LACD1"){
+      temp <- .Call("getLL_LACD1callEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LACD2"){
+      temp <- .Call("getLL_LACD2callEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "EXACD"){
+      temp <- .Call("getLL_EXACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "AMACD"){
+      temp <- .Call("getLL_AMACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "AACD"){
+      temp <- .Call("getLL_AACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "ABACD"){
+      temp <- .Call("getLL_ABACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "BACD"){
+      temp <- .Call("getLL_BACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    }  else if(getLL.args$model == "BCACD"){
+      temp <- .Call("getLL_BCACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "SNIACD"){
+      temp <- .Call("getLL_SNIACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.double(getLL.args$breakPoints),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "LSNIACD"){
+      temp <- .Call("getLL_logSNIACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.double(getLL.args$breakPoints),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "TACD"){
+      temp <- .Call("getLL_TACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(getLL.args$dur),
+                    as.integer(0),
+                    as.double(getLL.args$breakPoints),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
+    } else if(getLL.args$model == "TAMACD"){
+      temp <- .Call("getLL_TAMACDcallEx",
+                    as.double(getLL.args$dur),
+                    as.double(getLL.args$exogenousVar),
+                    as.double(getLL.args$dur),
+                    as.integer(0),
+                    as.double(getLL.args$breakPoints),
+                    as.double(param),                     
+                    as.integer(getLL.args$order),
+                    as.double(getLL.args$mean),
+                    as.integer(getLL.args$distCode),
+                    as.double(distPara),
+                    as.integer(getLL.args$newDay),
+                    as.integer(getLL.args$forceErrExpec), PACKAGE = "ACDm")
     }
   }
+  
+  if(getLL.args$returnMu){
+    return(list(LL = temp[[3]], mu = temp[[1]], resi = temp[[2]]))
+  }
+  if(!getLL.args$returnMu){
+    if(getLL.args$trace != 0) assign("ACDmOptimTrace", c(get("ACDmOptimTrace", envir = ACDmGlobalEnv), param, temp[[3]]), envir = ACDmGlobalEnv)
+     return(-temp[[3]])
+  }
+  
 }

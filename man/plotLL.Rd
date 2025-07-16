@@ -9,7 +9,8 @@ Plots the log likelihood for a fitted model against either one or two of the par
 }
 \usage{
 plotLL(fitModel, parameter1 = 1, parameter2 = NULL, 
-param1sequence, param2sequence, startpoint = NULL, returnOutput = FALSE)
+       param1sequence = NULL, param2sequence = NULL, startpoint = NULL, 
+       length.out = NULL, returnOutput = FALSE)
 }
 
 \arguments{
@@ -23,10 +24,13 @@ the first parameter for the log likelihood to be plotted against. Either the ind
 the second parameter for the log likelihood to be plotted against. Either the index of the parameter as an integer, or the name of the parameter. If left empty, a plot with only the \code{parameter1} will be drawn.
 }
   \item{param1sequence, param2sequence}{
-the sequence of points from with the log likelihood is computed. If left empty, the log likelihood will be computed at 21 points spanning between MLE-3*SD and MLE+3*SD in the one dimensional case, and the 11x11 points for the same range in the two dimensional case.
+the sequence of points from which the log likelihood is computed. If left empty, the log likelihood will be computed at 21 points spanning between MLE-3*SD and MLE+3*SD in the one dimensional case, and the 11x11 points for the same range in the two dimensional case.
 }
   \item{startpoint}{
 a vector of size equal to the number of parameters in the model. If this is supplied, the log likelihood will be evaluated at this point instead of the point of the MLE (for the parameters not in \code{parameter1} and \code{parameter2}).
+}
+  \item{length.out}{
+(optional) overrides the default number of points (for each dimension) where the log likelihood is computed.
 }
   \item{returnOutput}{
 a logical flag. If set to \code{TRUE}, the values of the response surface will be returned. See 'value' below.
@@ -61,12 +65,14 @@ Markus Belfrage
 
 \dontrun{
 
+
+data(adjDurData)
 #Indicates identification issues with the generelized gamma distibution:
 #(Try a diffrent 'startPara' in acdFit() to get slightly a better fit)
-fitModel2 <- acdFit(durations = adjDurData[1:3000, ], dist = "gengamma")
+fit <- acdFit(durations = adjDurData[1:3000, ], dist = "gengamma")
 seq1 <- seq(500, 1000, 50)
 seq2 <- seq(.02, 0.045, 0.001)
-plotLL(fitModel = fitModel2, parameter1 = "kappa", parameter2 = "gamma", 
+plotLL(fitModel = fit, parameter1 = "kappa", parameter2 = "gamma", 
        param1sequence = seq1, param2sequence = seq2)
 }
 }

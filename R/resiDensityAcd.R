@@ -1,7 +1,7 @@
 resiDensityAcd <- function(fitModel, xlim = NULL, binwidth = .1, density = FALSE){
   
   
-  ..density.. <- dexp <- dweibull <- residuals <- NULL
+  ..density.. <- dexp <- residuals <- NULL
   
   df <- data.frame(residuals = fitModel$residuals)
   

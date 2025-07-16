@@ -25,6 +25,7 @@ a positive integer giving the length of the interval.
 Markus Belfrage
 }
 \examples{
+data(durData)
 plotHistAcd(durData, windowunit = "days", window = 1)
 
 \dontrun{

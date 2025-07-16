@@ -65,8 +65,10 @@ pgenf <- function(q, kappa = 5, eta = 1.5, gamma = .8, lambda = 1, forceExpectat
   
   f <- function(x) dgenf(x = x, kappa = kappa, eta = eta, gamma = gamma, lambda = lambda)
   
-  returnValue <- ifelse(q == 0, 0, stats::integrate(f, 0, q)$value)
+  #returnValue <- ifelse(q == 0, 0, stats::integrate(f, 0, q)$value)
   
+  returnValue <- vapply(X = q, FUN = function(X) ifelse(X == 0, 0, stats::integrate(f, 0, 
+                                                   X)$value), FUN.VALUE = 0)
   return(returnValue)  
 }
 
@@ -122,7 +124,11 @@ qgengamma <- function(p, gamma = .3, kappa = 3, lambda = .3, forceExpectation = 
 }
 
 rgengamma <- function(n = 1, gamma = .3, kappa = 3, lambda = .3, forceExpectation = F){
-  qgengamma(stats::runif(n), gamma = gamma, kappa = kappa, forceExpectation = forceExpectation)
+  
+  if(forceExpectation) lambda <- exp(lgamma(kappa) - lgamma(kappa + 1 / gamma))
+  
+  lambda * rgamma(n, kappa)^(1/gamma)
+
 }
 
 gengammaHazard <- function(x, gamma = .3, kappa = 3, lambda = .3, forceExpectation = F){

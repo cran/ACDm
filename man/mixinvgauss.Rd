@@ -28,7 +28,7 @@ logical; if \code{TRUE}, the expectation of the distribution is forced to be 1..
 }
 }
 \details{
-The finite mixture of inverse Gaussian distributions was used by Gomes-Deniz and Perez-Rodrigues (201X) for ACD-models. Its PDF is:
+The finite mixture of inverse Gaussian distributions was used by Gomes-Deniz and Perez-Rodrigues (2013) for ACD-models. Its PDF is:
 
 
 \deqn{f(x) = \frac{\gamma + x}{\gamma + \theta} \sqrt{\frac{\lambda}{2 \pi x^3}} \exp \left[ - \frac{\lambda(x-\theta)^2}{2 x \theta^2}\right].}
@@ -39,8 +39,6 @@ If \code{forceExpectation = TRUE} the distribution is transformed by dividing th
 }
 
 \references{
-
-Gomez-Deniz Perez-Rodriguez (201X) 
-\emph{Non-exponential mixtures, non-monotonic financial hazard functions and the autoregressive conditional duration model.} Working paper. Retrieved June 16, 2015, from http://dea.uib.es/digitalAssets/254/254084_perez.pdf.
-
+Gomez-Deniz, E. and Perez-Rodriguez, J.V. (2016) 
+\emph{Mixture Inverse Gaussian for Unobserved Heterogeneity in the Autoregressive Conditional Duration Model.} Communications in Statistics - Theory and Methods, http://dx.doi.org/10.1080/03610926.2016.1200094
 }

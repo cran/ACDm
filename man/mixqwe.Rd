@@ -5,10 +5,10 @@
 \alias{mixqweHazard}
 
 \title{
-Discreet mix of the q-Weibull and the exponential distributions
+Discreet mix of the Q-Weibull and the exponential distributions
 }
 \description{
-Density (PDF), distribution function (CDF), and hazard function for a discreetly mixed distribution of the q-Weibull and the exponential distributions.
+Density (PDF), distribution function (CDF), and hazard function for a discreetly mixed distribution of the Q-Weibull and the exponential distributions.
 }
 \usage{
 dmixqwe(x, pdist = .5, a = .8, qdist = 1.5, lambda = .8, b = 1, forceExpectation = F)

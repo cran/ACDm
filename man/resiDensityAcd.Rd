@@ -29,6 +29,7 @@ Markus Belfrage
 }
 \examples{
 \dontrun{
+data(adjDurData)
 fitModelBurr <- acdFit(adjDurData, dist = "burr")
 resiDensityAcd(fitModelBurr)}
 }

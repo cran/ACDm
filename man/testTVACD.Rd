@@ -5,7 +5,7 @@
 LM test against Time-Varying ACD models (Meitz and Terasvirta, 2006)
 }
 \description{
-Tests if the parameters are time-varying.
+Tests if the parameters are time-varying (currently only works for \code{model = "ACD"}).
 }
 \usage{
 testTVACD(fitModel, K = 2, type = "total", robust = TRUE)
@@ -51,6 +51,7 @@ Markus Belfrage
 \code{\link{testRmACD}}, \code{\link{testSTACD}}.
 }
 \examples{
+data(adjDurData)
 fitModel5000obs <- acdFit(adjDurData[1:5000,])
 testTVACD(fitModel5000obs, K = 2, type = "total", robust = TRUE)
 

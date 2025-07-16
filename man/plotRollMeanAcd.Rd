@@ -18,6 +18,7 @@ the length of the rolling window.
 }
 }
 \examples{
+data(durData)
 plotRollMeanAcd(durData, window = 500)
 
 }

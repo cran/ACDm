@@ -25,34 +25,51 @@ computeDurations <- function(transactions, open = "10:00:00", close = "18:25:00"
 
   if(length(transactions$volume) != 0 || length(transactions$price)){ #volume and/or price were provided
     
-    temp <- .C("computeDurationsSubSec", 
-               as.integer(transactions$time$year), #1
-               as.integer(transactions$time$mon),
-               as.integer(transactions$time$mday),
-               as.integer(transactions$time$hour),
-               as.integer(transactions$time$min), #5
-               as.double(transactions$time$sec),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))), #10
-               as.integer(rep(0,length(transactions$time))),
-               as.double(rep(0,length(transactions$time))),
-               as.integer(transactions$volume),
-               as.double(transactions$price), 
-               as.integer(rep(0,length(transactions$time))), #15
-               as.double(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))),
-               as.double(rep(0,length(transactions$time))),
-               as.integer(length(transactions$time)),
-               as.integer(0), #20
-               as.double(open),
-               as.double(close),
-               as.integer(type),
-               as.integer(rm0dur),
-               as.double(priceDiff),
-               as.integer(cumVol), PACKAGE = "ACDm") #26
+    # temp <- .C("computeDurationsSubSec", 
+    #            as.integer(transactions$time$year), #1
+    #            as.integer(transactions$time$mon),
+    #            as.integer(transactions$time$mday),
+    #            as.integer(transactions$time$hour),
+    #            as.integer(transactions$time$min), #5
+    #            as.double(transactions$time$sec),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))), #10
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.double(rep(0,length(transactions$time))),
+    #            as.integer(transactions$volume),
+    #            as.double(transactions$price), 
+    #            as.integer(rep(0,length(transactions$time))), #15
+    #            as.double(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.double(rep(0,length(transactions$time))),
+    #            as.integer(length(transactions$time)),
+    #            as.integer(0), #20
+    #            as.double(open),
+    #            as.double(close),
+    #            as.integer(type),
+    #            as.integer(rm0dur),
+    #            as.double(priceDiff),
+    #            as.integer(cumVol), PACKAGE = "ACDm") #26
     
+    
+    temp <- computeDurationsSubSec_wrap(
+      transactions$time$year,
+      transactions$time$mon,
+      transactions$time$mday,
+      transactions$time$hour,
+      transactions$time$min,
+      transactions$time$sec,
+      transactions$volume,
+      transactions$price,
+      as.double(open),
+      as.double(close),
+      as.integer(type),
+      as.integer(rm0dur),
+      as.double(priceDiff),
+      as.integer(cumVol)
+    )
     
     n <- temp[[20]]
     times <- paste(temp[[7]][1:n] + 1900, temp[[8]][1:n] + 1, temp[[9]][1:n], temp[[10]][1:n], temp[[11]][1:n], temp[[12]][1:n], sep = ":")
@@ -65,26 +82,38 @@ computeDurations <- function(transactions, open = "10:00:00", close = "18:25:00"
     
   } else{ #only transaction times were given
     
-    temp <- .C("computeDurationsShort", 
-               as.integer(transactions$time$year), #1
-               as.integer(transactions$time$mon),
-               as.integer(transactions$time$mday),
-               as.integer(transactions$time$hour),
-               as.integer(transactions$time$min), #5
-               as.double(transactions$time$sec),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))),
-               as.integer(rep(0,length(transactions$time))), #10
-               as.integer(rep(0,length(transactions$time))),
-               as.double(rep(0,length(transactions$time))),
-               as.double(rep(0,length(transactions$time))),     
-               as.integer(0), 
-               as.integer(rep(0,length(transactions$time))),    #15   
-               as.integer(length(transactions$time)),
-               as.integer(open),
-               as.integer(close),
-               as.integer(rm0dur), PACKAGE = "ACDm")  #19
+    # temp <- .C("computeDurationsShort", 
+    #            as.integer(transactions$time$year), #1
+    #            as.integer(transactions$time$mon),
+    #            as.integer(transactions$time$mday),
+    #            as.integer(transactions$time$hour),
+    #            as.integer(transactions$time$min), #5
+    #            as.double(transactions$time$sec),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.integer(rep(0,length(transactions$time))), #10
+    #            as.integer(rep(0,length(transactions$time))),
+    #            as.double(rep(0,length(transactions$time))),
+    #            as.double(rep(0,length(transactions$time))),     
+    #            as.integer(0), 
+    #            as.integer(rep(0,length(transactions$time))),    #15   
+    #            as.integer(length(transactions$time)),
+    #            as.integer(open),
+    #            as.integer(close),
+    #            as.integer(rm0dur), PACKAGE = "ACDm")  #19
+    
+    temp <- computeDurationsShort_wrap(
+      y                  = as.integer(transactions$time$year),
+      M                  = as.integer(transactions$time$mon),
+      d                  = as.integer(transactions$time$mday),
+      h                  = as.integer(transactions$time$hour),
+      m                  = as.integer(transactions$time$min),
+      s                  = as.numeric(transactions$time$sec),
+      open               = as.integer(open),
+      close              = as.integer(close),
+      zeroDurHandeling  = as.integer(rm0dur)
+    )
     
     n <- temp[[14]] 
     
@@ -107,7 +136,8 @@ computeDurations <- function(transactions, open = "10:00:00", close = "18:25:00"
     
   } 
   
-  cat("The", length(transactions$time), "transactions resulted in", n, "durations")
+  cat("Processed", length(transactions$time),
+      "transactions and produced", n, "durations.\n")
   return(dftemp)
   
 }

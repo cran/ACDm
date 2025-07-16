@@ -1,6 +1,20 @@
 \name{NEWS}
 \title{News for Package 'ACDm'}
 
+\section{Changes in ACDm version 1.1.0 (2025-07-16)}{
+
+    \itemize{
+      \item Added the following models for \code{acdFit()}: \code{EXACD}, \code{AACD}, \code{BCACD}, \code{TACD}, \code{TAMACD}.
+      \item Added optimization with analytical derivatives in \code{acdFit()}. Works for all models, but currently only with \code{dist = "exponential"} and not with exogenous variables.
+	  \item Added support for \code{broom::tidy} and \code{broom::glance}.
+      \item Fixed a bug that prevented exogenous variables from being used with any distribution other than the exponential (thanks to Mark Rotter for pointing this out).
+      \item Fixed a minor bug in \code{plotLL()}.
+      \item Fixed a bug in \code{diurnalAdj()} where \code{method = "FFF"} with \code{aggregation = "all"} previously returned the deterministic part instead of the adjusted durations.
+      \item Fixed a bug in \code{predict.acdFit()}—previously, predictions could only be made from a fitted ACD(1,1) model with exponential errors (thanks to Renova for pointing this out).
+      \item Fixed a bug in \code{rgengamma()} (thanks to Steinar Veka for pointing this out).
+    }
+}
+
 \section{Changes in ACDm version 1.0.4.2 (2022-11-14)}{
   \itemize{
     \item Minor fix to make comments in C code valid UTF-8.

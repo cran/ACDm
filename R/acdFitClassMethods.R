@@ -25,7 +25,7 @@ predict.acdFit <- function(object, N = 10, ...){
   if(object$forceErrExpec == FALSE) errorExpectation <- mean(object$residuals) 
   
   #"simulates" with error terms equal to their expectation, starting from the endpoints of the original data set
-  sim_ACD(N = N, param = stats::coef(object), Nburn = length(endDurations), startX = endDurations, 
+  sim_ACD(N = N, model = object, Nburn = length(endDurations), startX = endDurations,
           startMu = endMu, errors = errorExpectation)
   
 }
@@ -57,7 +57,7 @@ print.acdFit <- function(x, ...){
     cat("\nNote:", x$comments) 
   }
   if(length(x$forcedDistPara) > 0){
-    cat("\n\nThe fixed/unfree mean distribution parameter: \n") 
+    cat("\n\nFixed mean distribution parameter: \n") 
     cat(" ", names(x$forcedDistPara), ": ", x$forcedDistPara, sep = "")
   }
   if(length(x$bootErr) != 0){
@@ -78,3 +78,22 @@ print.acdFit <- function(x, ...){
   cat("\n\n")
 }
 
+tidy.acdFit <- function(x, ...) {
+  terms <- c(x$mPara, x$dPara)
+  data.frame(
+    term = names(terms),
+    estimate = as.numeric(terms),         
+    std.error = x$parameterInference$SE,
+    p.value = x$parameterInference$PV
+  )
+}
+
+glance.acdFit <- function(x, ...) {
+  data.frame(
+    logLik = x$goodnessOfFit$value[[1]],
+    AIC = x$goodnessOfFit$value[[2]],
+    BIC = x$goodnessOfFit$value[[3]],
+    MSE = x$goodnessOfFit$value[[4]],
+    nobs = x$N
+  )
+}

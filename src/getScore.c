@@ -6,7 +6,7 @@
 //    calculates the expected score and hessian
 //    returns the expected score and derivative of the mean 
 //    for each observation, and the summed expected hessian,
-//    as well as the outer product of the 
+//    as well as the outer product of the scores
 SEXP getScoreACDExp(
 		SEXP x,
 		SEXP mu,

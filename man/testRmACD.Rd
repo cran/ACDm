@@ -5,7 +5,7 @@
 LM test of no Remaining ACD (Meitz and Terasvirta, 2006)
 }
 \description{
-Tests if there is any remaining ACD structure in the residuals
+Tests if there is any remaining ACD structure in the residuals (currently only works for \code{model = "ACD"}).
 }
 \usage{
 testRmACD(fitModel, pStar = 2, robust = TRUE)
@@ -34,7 +34,7 @@ the function tests the null hypothesis
 
 }
 \value{
-a list containing:
+a list of:
 \item{chi2}{
 the value of the LM statistic.
 }
@@ -55,6 +55,7 @@ Markus Belfrage
 \code{\link{testTVACD}}, \code{\link{testSTACD}}.
 }
 \examples{
+data(adjDurData)
 fitModel3000obs <- acdFit(adjDurData[1:3000,])
 testRmACD(fitModel3000obs, pStar = 2, robust = TRUE)
 }
